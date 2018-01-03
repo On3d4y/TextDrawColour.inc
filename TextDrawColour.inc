@@ -1606,3 +1606,269 @@ stock bool:TDC_PlayerTDGetPreviewVehCol(playerid, PlayerText:text, &color1, &col
 #endif
 #define TextDrawGetPreviewVehCol TDC_TextDrawGetPreviewVehCol
 
+#if defined _ALS_CreatePlayerTextDraw
+	#undef CreatePlayerTextDraw
+#else
+	#define _ALS_CreatePlayerTextDraw
+#endif
+#define CreatePlayerTextDraw TDC_PlayerTDCreate
+
+#if defined _ALS_PlayerTextDrawDestroy
+	#undef PlayerTextDrawDestroy
+#else
+	#define _ALS_PlayerTextDrawDestroy
+#endif
+#define PlayerTextDrawDestroy TDC_PlayerTDDestroy
+
+#if defined _ALS_PlayerTextDrawLetterSize
+	#undef PlayerTextDrawLetterSize
+#else
+	#define _ALS_PlayerTextDrawLetterSize
+#endif
+#define PlayerTextDrawLetterSize TDC_PlayerTDLetterSize
+
+#if defined _ALS_PlayerTextDrawTextSize
+	#undef PlayerTextDrawTextSize
+#else
+	#define _ALS_PlayerTextDrawTextSize
+#endif
+#define PlayerTextDrawTextSize TDC_PlayerTDTextSize
+
+#if defined _ALS_PlayerTextDrawAlignment
+	#undef PlayerTextDrawAlignment
+#else
+	#define _ALS_PlayerTextDrawAlignment
+#endif
+#define PlayerTextDrawAlignment TDC_PlayerTDAlignment
+
+#if defined _ALS_PlayerTextDrawColor
+	#undef PlayerTextDrawColor
+#else
+	#define _ALS_PlayerTextDrawColor
+#endif
+#define PlayerTextDrawColor TDC_PlayerTDColor
+
+#if defined _ALS_PlayerTextDrawUseBox
+	#undef PlayerTextDrawUseBox
+#else
+	#define _ALS_PlayerTextDrawUseBox
+#endif
+#define PlayerTextDrawUseBox TDC_PlayerTDUseBox
+
+#if defined _ALS_PlayerTextDrawBoxColor
+	#undef PlayerTextDrawBoxColor
+#else
+	#define _ALS_PlayerTextDrawBoxColor
+#endif
+#define PlayerTextDrawBoxColor TDC_PlayerTDBoxColor
+
+#if defined _ALS_PlayerTextDrawSetShadow
+	#undef PlayerTextDrawSetShadow
+#else
+	#define _ALS_PlayerTextDrawSetShadow
+#endif
+#define PlayerTextDrawSetShadow TDC_PlayerTDSetShadow
+
+#if defined _ALS_PlayerTextDrawSetOutline
+	#undef PlayerTextDrawSetOutline
+#else
+	#define _ALS_PlayerTextDrawSetOutline
+#endif
+#define PlayerTextDrawSetOutline TDC_PlayerTDSetOutline
+
+#if defined _ALS_PlayerTDBackgroundColor
+	#undef PlayerTextDrawBackgroundColor
+#else
+	#define _ALS_PlayerTDBackgroundColor
+#endif
+#define PlayerTextDrawBackgroundColor TDC_PlayerTDBackgroundColor
+
+#if defined _ALS_PlayerTextDrawFont
+	#undef PlayerTextDrawFont
+#else
+	#define _ALS_PlayerTextDrawFont
+#endif
+#define PlayerTextDrawFont TDC_PlayerTDFont
+
+#if defined _ALS_PlayerTDSetProportional
+	#undef PlayerTextDrawSetProportional
+#else
+	#define _ALS_PlayerTDSetProportional
+#endif
+#define PlayerTextDrawSetProportional TDC_PlayerTDSetProportional
+
+#if defined _ALS_PlayerTDSetSelectable
+	#undef PlayerTextDrawSetSelectable
+#else
+	#define _ALS_PlayerTDSetSelectable
+#endif
+#define PlayerTextDrawSetSelectable TDC_PlayerTDSetSelectable
+
+#if defined _ALS_PlayerTextDrawSetPos
+	#undef PlayerTextDrawSetPos
+#else
+	#define _ALS_PlayerTextDrawSetPos
+#endif
+#define PlayerTextDrawSetPos TDC_PlayerTDSetPos
+
+#if defined _ALS_PlayerTextDrawShow
+	#undef PlayerTextDrawShow
+#else
+	#define _ALS_PlayerTextDrawShow
+#endif
+#define PlayerTextDrawShow TDC_PlayerTDShow
+
+#if defined _ALS_PlayerTextDrawHide
+	#undef PlayerTextDrawHide
+#else
+	#define _ALS_PlayerTextDrawHide
+#endif
+#define PlayerTextDrawHide TDC_PlayerTDHide
+
+#if defined _ALS_PlayerTextDrawSetString
+	#undef PlayerTextDrawSetString
+#else
+	#define _ALS_PlayerTextDrawSetString
+#endif
+#define PlayerTextDrawSetString TDC_PlayerTDSetString
+
+#if defined _ALS_PlayerTDSetPreviewModel
+	#undef PlayerTextDrawSetPreviewModel
+#else
+	#define _ALS_PlayerTDSetPreviewModel
+#endif
+#define PlayerTextDrawSetPreviewModel TDC_PlayerTDSetPreviewModel
+
+#if defined _ALS_PlayerTDSetPreviewRot
+	#undef PlayerTextDrawSetPreviewRot
+#else
+	#define _ALS_PlayerTDSetPreviewRot
+#endif
+#define PlayerTextDrawSetPreviewRot TDC_PlayerTDSetPreviewRot
+
+#if defined _ALS_PlayerTDSetPreviewVehCol
+	#undef PlayerTextDrawSetPreviewVehCol
+#else
+	#define _ALS_PlayerTDSetPreviewVehCol
+#endif
+#define PlayerTextDrawSetPreviewVehCol TDC_PlayerTDSetPreviewVehCol
+
+#if defined _ALS_PlayerTDGetLetterSize
+	#undef PlayerTextDrawGetLetterSize
+#else
+	#define _ALS_PlayerTDGetLetterSize
+#endif
+#define PlayerTextDrawGetLetterSize TDC_PlayerTDGetLetterSize
+
+#if defined _ALS_PlayerTextDrawGetTextSize
+	#undef PlayerTextDrawGetTextSize
+#else
+	#define _ALS_PlayerTextDrawGetTextSize
+#endif
+#define PlayerTextDrawGetTextSize TDC_PlayerTDGetTextSize
+
+#if defined _ALS_PlayerTextDrawGetAlignment
+	#undef PlayerTextDrawGetAlignment
+#else
+	#define _ALS_PlayerTextDrawGetAlignment
+#endif
+#define PlayerTextDrawGetAlignment TDC_PlayerTDGetAlignment
+
+#if defined _ALS_PlayerTextDrawGetColor
+	#undef PlayerTextDrawGetColor
+#else
+	#define _ALS_PlayerTextDrawGetColor
+#endif
+#define PlayerTextDrawGetColor TDC_PlayerTDGetColor
+
+#if defined _ALS_PlayerTextDrawGetUseBox
+	#undef PlayerTextDrawGetUseBox
+#else
+	#define _ALS_PlayerTextDrawGetUseBox
+#endif
+#define PlayerTextDrawGetUseBox TDC_PlayerTDGetUseBox
+
+#if defined _ALS_PlayerTextDrawGetBoxColor
+	#undef PlayerTextDrawGetBoxColor
+#else
+	#define _ALS_PlayerTextDrawGetBoxColor
+#endif
+#define PlayerTextDrawGetBoxColor TDC_PlayerTDGetBoxColor
+
+#if defined _ALS_PlayerTextDrawGetShadow
+	#undef PlayerTextDrawGetShadow
+#else
+	#define _ALS_PlayerTextDrawGetShadow
+#endif
+#define PlayerTextDrawGetShadow TDC_PlayerTDGetShadow
+
+#if defined _ALS_PlayerTextDrawGetOutline
+	#undef PlayerTextDrawGetOutline
+#else
+	#define _ALS_PlayerTextDrawGetOutline
+#endif
+#define PlayerTextDrawGetOutline TDC_PlayerTDGetOutline
+
+#if defined _ALS_PlayerTDGetBackgroundColor
+	#undef PlayerTDGetBackgroundColor
+#else
+	#define _ALS_PlayerTDGetBackgroundColor
+#endif
+#define PlayerTDGetBackgroundColor TDC_PlayerTDGetBackgroundColor
+
+#if defined _ALS_PlayerTextDrawGetFont
+	#undef PlayerTextDrawGetFont
+#else
+	#define _ALS_PlayerTextDrawGetFont
+#endif
+#define PlayerTextDrawGetFont TDC_PlayerTDGetFont
+
+#if defined _ALS_PlayerTDGetProportional
+	#undef PlayerTextDrawGetProportional
+#else
+	#define _ALS_PlayerTDGetProportional
+#endif
+#define PlayerTextDrawGetProportional TDC_PlayerTDGetProportional
+
+#if defined _ALS_PlayerTDGetSelectable
+	#undef PlayerTextDrawGetSelectable
+#else
+	#define _ALS_PlayerTDGetSelectable
+#endif
+#define PlayerTextDrawGetSelectable TDC_PlayerTDGetSelectable
+
+#if defined _ALS_PlayerTextDrawGetPos
+	#undef PlayerTextDrawGetPos
+#else
+	#define _ALS_PlayerTextDrawGetPos
+#endif
+#define PlayerTextDrawGetPos TDC_PlayerTDGetPos
+
+#if defined _ALS_PlayerTextDrawGetString
+	#undef PlayerTextDrawGetString
+#else
+	#define _ALS_PlayerTextDrawGetString
+#endif
+#define PlayerTextDrawGetString TDC_PlayerTDGetString
+
+#if defined _ALS_PlayerTDGetPreviewModel
+	#undef PlayerTextDrawGetPreviewModel
+#else
+	#define _ALS_PlayerTDGetPreviewModel
+#endif
+#define PlayerTextDrawGetPreviewModel TDC_PlayerTDGetPreviewModel
+
+#if defined _ALS_PlayerTDGetPreviewRot
+	#undef PlayerTextDrawGetPreviewRot
+#else
+	#define _ALS_PlayerTDGetPreviewRot
+#endif
+#define PlayerTextDrawGetPreviewRot TDC_PlayerTDGetPreviewRot
+
+#if defined _ALS_PlayerTDGetPreviewVehCol
+	#undef PlayerTextDrawGetPreviewVehCol
+#else
+	#define _ALS_PlayerTDGetPreviewVehCol
+#endif
+#define PlayerTextDrawGetPreviewVehCol TDC_PlayerTDGetPreviewVehCol
+
