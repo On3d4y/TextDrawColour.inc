@@ -140,7 +140,7 @@ static stock Float:characterWidths[][] = {
 	}
 };
 
-new regex:gRegex;
+static stock regex:gRegex;
 
 hook OnScriptInit() {
 	gRegex = regex_new("\\{([0-9A-Fa-f]{6})\\}");
