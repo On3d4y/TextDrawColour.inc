@@ -341,9 +341,10 @@ static stock TDC_GetLineEnd(font, text[], pos, Float:max, bool:prop, Float:outli
 
 enum e_TDC_ENUM {
 	e_TDC_FLAGS,
-	Float:TDC_X,
-	Float:TDC_Y,
+	Float:e_TDC_X,
+	Float:e_TDC_Y,
 	UnmanagedPointer:e_TDC_TEXT,
+	e_TDC_TEXT_LEN,
 	e_TDC_FONT,
 	e_TDC_ALIGNMENT,
 	Float:e_TDC_WIDTH,
@@ -367,6 +368,7 @@ enum e_TDC_ENUM {
 	e_TDC_COLOUR_2,
 	Text:e_TDC_BOX_TD
 	UnmanagedPointer:e_TDC_TDS,
+	e_TDC_TDS_COUNT,
 }
 
 static stock UnmanagedPointer:gPlayerTDs[MAX_PLAYERS][PlayerText:MAX_TEXT_DRAWS];
@@ -512,27 +514,23 @@ static stock bool:TDC_ValidPlayer(playerid, PlayerText:id) {
 	return (PlayerText:0 <= id < PlayerText:MAX_TEXT_DRAWS && gPlayerTDs[playerid][id]);
 }
 
-#define Malloc_FastString(%1) Malloc_NextSlot(_:(%1))
+static stock gTempString[8192];
 
 static stock TDC_UpdateGlobal(id) {
-	if (MEM_UM_get_val(gTDs[id], e_TDC_FLAGS) & 4) {
+	static slot[e_TDC_ENUM];
+	MEM_UM_get_arr(gTDs[id], 0, slot, e_TDC_ENUM);
+	if (slot[e_TDC_FLAGS] & 4) {
 		foreach (new t : gTDs<id>) {
 			TextDrawDestroy(Text:t);
 		}
 		Iter_Clear(gTDs<id>);
 		TDC_Render(INVALID_PLAYER_ID, id,
-				MEM_UM_get_val(gTDs[id], TDC_X),                       MEM_UM_get_val(gTDs[id], TDC_Y),
-				Malloc_FastString(MEM_UM_get_val(gTDs[id], e_TDC_TEXT)), MEM_UM_get_val(gTDs[id], e_TDC_FONT),
-				MEM_UM_get_val(gTDs[id], e_TDC_ALIGNMENT),               MEM_UM_get_val(gTDs[id], e_TDC_WIDTH),
-				MEM_UM_get_val(gTDs[id], e_TDC_HEIGHT),                  MEM_UM_get_val(gTDs[id], e_TDC_SHADOW),
-				MEM_UM_get_val(gTDs[id], e_TDC_OUTLINE),                 MEM_UM_get_val(gTDs[id], e_TDC_PROP),
-				MEM_UM_get_val(gTDs[id], e_TDC_FONTX),                   MEM_UM_get_val(gTDs[id], e_TDC_FONTY),
-				MEM_UM_get_val(gTDs[id], e_TDC_BOX),                     MEM_UM_get_val(gTDs[id], e_TDC_COLOUR),
-				MEM_UM_get_val(gTDs[id], e_TDC_BG),                      MEM_UM_get_val(gTDs[id], e_TDC_BC),
-				MEM_UM_get_val(gTDs[id], e_TDC_MODEL),                   MEM_UM_get_val(gTDs[id], e_TDC_ROT_X),
-				MEM_UM_get_val(gTDs[id], e_TDC_ROT_Y),                   MEM_UM_get_val(gTDs[id], e_TDC_ROT_Z),
-				MEM_UM_get_val(gTDs[id], e_TDC_ZOOM),                    MEM_UM_get_val(gTDs[id], e_TDC_COLOUR_1),
-				MEM_UM_get_val(gTDs[id], e_TDC_COLOUR_2),                MEM_UM_get_val(gTDs[id], e_TDC_SELECTABLE));
+				slot[e_TDC_X],         slot[e_TDC_Y],        gTempString,           slot[e_TDC_FONT],
+				slot[e_TDC_ALIGNMENT], slot[e_TDC_WIDTH],    slot[e_TDC_HEIGHT],    slot[e_TDC_SHADOW],
+				slot[e_TDC_OUTLINE],   slot[e_TDC_PROP],     slot[e_TDC_FONTX],     slot[e_TDC_FONTY],
+				slot[e_TDC_BOX],       slot[e_TDC_COLOUR],   slot[e_TDC_BG],        slot[e_TDC_BC],
+				slot[e_TDC_MODEL],     slot[e_TDC_ROT_X],    slot[e_TDC_ROT_Y],     slot[e_TDC_ROT_Z],
+				slot[e_TDC_ZOOM],      slot[e_TDC_COLOUR_1], slot[e_TDC_COLOUR_2],  slot[e_TDC_SELECTABLE]);
 		foreach (new t : gTDs<id>) {
 			foreach (new playerid : Bits(gPlayers[id])) {
 				TextDrawShowForPlayer(playerid, Text:t);
@@ -542,33 +540,35 @@ static stock TDC_UpdateGlobal(id) {
 }
 
 static stock TDC_UpdatePlayer(playerid, id) {
-	foreach (new t : gPlayerTDs[playerid]<id>) {
-		PlayerTextDrawDestroy(playerid, PlayerText:t);
+	static slot[e_TDC_ENUM];
+	//foreach (new t : gPlayerTDs[playerid]<id>) {
+	//	PlayerTextDrawDestroy(playerid, PlayerText:t);
+	//}
+	MEM_UM_get_arr(gPlayerTDs[playerid][id], 0, slot, e_TDC_ENUM);
+	if (!(slot[e_TDC_FLAGS] & 8)) {
+		return;
 	}
-	new slot = playerid * MAX_PLAYERS + id;
-	Iter_Clear(gPlayerTDs[playerid]<id>);
+	for (new i = 0, j = slot[e_TDC_TDS_COUNT], p = slot[e_TDC_TDS]; i != j; ++i) {
+		PlayerTextDrawDestroy(playerid, PlayerText:MEM_UM_get_val(UnmanagedPointer:p, i));
+	}
+	new len = min(slot[e_TDC_TEXT_LEN], sizeof (gTempString) - 1);
+	MEM_UM_get_arr(slot[e_TDC_TEXT], 0, gTempString, len);
+	gTempString[len] = '\0';
+	MEM_UM_delete(slot[e_TDC_TDS]);
 	TDC_Render(playerid, id,
-			MEM_UM_get_val(slot, TDC_X),                      MEM_UM_get_val(slot, TDC_Y),
-			Malloc_FastString(MEM_UM_get_val(slot, e_TDC_TEXT)), MEM_UM_get_val(slot, e_TDC_FONT),
-			MEM_UM_get_val(slot, e_TDC_ALIGNMENT),               MEM_UM_get_val(slot, e_TDC_WIDTH),
-			MEM_UM_get_val(slot, e_TDC_HEIGHT),                  MEM_UM_get_val(slot, e_TDC_SHADOW),
-			MEM_UM_get_val(slot, e_TDC_OUTLINE),                 MEM_UM_get_val(slot, e_TDC_PROP),
-			MEM_UM_get_val(slot, e_TDC_FONTX),                   MEM_UM_get_val(slot, e_TDC_FONTY),
-			MEM_UM_get_val(slot, e_TDC_BOX),                     MEM_UM_get_val(slot, e_TDC_COLOUR),
-			MEM_UM_get_val(slot, e_TDC_BG),                      MEM_UM_get_val(slot, e_TDC_BC),
-			MEM_UM_get_val(slot, e_TDC_MODEL),                   MEM_UM_get_val(slot, e_TDC_ROT_X),
-			MEM_UM_get_val(slot, e_TDC_ROT_Y),                   MEM_UM_get_val(slot, e_TDC_ROT_Z),
-			MEM_UM_get_val(slot, e_TDC_ZOOM),                    MEM_UM_get_val(slot, e_TDC_COLOUR_1),
-			MEM_UM_get_val(slot, e_TDC_COLOUR_2),                MEM_UM_get_val(slot, e_TDC_SELECTABLE));
-	if (MEM_UM_get_val(slot, e_TDC_FLAGS) & 8) {
-		foreach (new t : gPlayerTDs[playerid]<id>) {
-			PlayerTextDrawShow(playerid, PlayerText:t);
-		}
-	}
+	        slot[e_TDC_X],         slot[e_TDC_Y],        gTempString,           slot[e_TDC_FONT],
+			slot[e_TDC_ALIGNMENT], slot[e_TDC_WIDTH],    slot[e_TDC_HEIGHT],    slot[e_TDC_SHADOW],
+			slot[e_TDC_OUTLINE],   slot[e_TDC_PROP],     slot[e_TDC_FONTX],     slot[e_TDC_FONTY],
+			slot[e_TDC_BOX],       slot[e_TDC_COLOUR],   slot[e_TDC_BG],        slot[e_TDC_BC],
+			slot[e_TDC_MODEL],     slot[e_TDC_ROT_X],    slot[e_TDC_ROT_Y],     slot[e_TDC_ROT_Z],
+			slot[e_TDC_ZOOM],      slot[e_TDC_COLOUR_1], slot[e_TDC_COLOUR_2],  slot[e_TDC_SELECTABLE]);
+	//for (new i = 0, j = MEM_UM_get_val(gPlayerTDs[playerid][id], e_TDC_TDS_COUNT), p = MEM_UM_get_val(gPlayerTDs[playerid][id], e_TDC_TDS); i != j; ++i) {
+	//	PlayerTextDrawShow(playerid, PlayerText:MEM_UM_get_val(UnmanagedPointer:p, i));
+	//}
 }
 
 stock Text:TDC_TextDrawCreate(Float:x, Float:y, text[]) {
-	static style[e_TDC_ENUM] = { 1, 0.0, 0.0, MEM_NULLUMPTR, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1, MEM_NULLUMPTR };
+	static style[e_TDC_ENUM] = { 1, 0.0, 0.0, MEM_NULLUMPTR, 0, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1, MEM_NULLUMPTR, 0 };
 	for (new id = 0; id < MAX_TEXT_DRAWS; ++id) {
 		if (!(MEM_UM_get_val(gTDs[id], e_TDC_FLAGS) & 1)) {
 			new len = strlen(text);
@@ -585,8 +585,9 @@ stock Text:TDC_TextDrawCreate(Float:x, Float:y, text[]) {
 			}
 			gStyle[id] = style;
 			MEM_UM_set_val(gTDs[id], e_TDC_TEXT, mem);
-			MEM_UM_set_val(gTDs[id], TDC_X, x);
-			MEM_UM_set_val(gTDs[id], TDC_Y, y);
+			MEM_UM_set_val(gTDs[id], e_TDC_TEXT_LEN, len);
+			MEM_UM_set_val(gTDs[id], e_TDC_X, x);
+			MEM_UM_set_val(gTDs[id], e_TDC_Y, y);
 			return Text:id;
 		}
 	}
@@ -690,14 +691,14 @@ stock TDC_TextDrawSetSelectable(Text:text, set) {
 
 stock TDC_TextDrawSetPos(Text:text, Float:x, Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		MEM_UM_set_val(gTDs[_:text], TDC_X, x);
-		MEM_UM_set_val(gTDs[_:text], TDC_Y, y);
+		MEM_UM_set_val(gTDs[_:text], e_TDC_X, x);
+		MEM_UM_set_val(gTDs[_:text], e_TDC_Y, y);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawShowForPlayer(playerid, Text:text) {
-	if (TDC_ValidGlobal(text) && Iter_Contains(Player, playerid) && !Bit_Get(gPlayers[_:text], playerid)) {
+	if (TDC_ValidGlobal(text) && IsPlayerConnected(playerid) && !Bit_Get(gPlayers[_:text], playerid)) {
 		Bit_Let(gPlayers[_:text], playerid);
 		if (MEM_UM_get_val(gTDs[_:text], e_TDC_FLAGS) & 4) {
 			foreach (new t : gTDs<(_:text)>) {
@@ -903,8 +904,8 @@ stock bool:TDC_TextDrawGetSelectable(Text:text, &bool:set) {
 
 stock bool:TDC_TextDrawGetPos(Text:text, &Float:x, &Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		x = MEM_UM_get_val(gTDs[_:text], TDC_X);
-		y = MEM_UM_get_val(gTDs[_:text], TDC_Y);
+		x = MEM_UM_get_val(gTDs[_:text], e_TDC_X);
+		y = MEM_UM_get_val(gTDs[_:text], e_TDC_Y);
 		return true;
 	} else {
 		return false;
@@ -953,7 +954,7 @@ stock bool:TDC_TextDrawGetPreviewVehCol(Text:text, &color1, &color2) {
 }
 
 stock PlayerText:TDC_PlayerTDCreate(playerid, Float:x, Float:y, text[]) {
-	static style[e_TDC_ENUM] = { 1, 0.0, 0.0, MEM_NULLUMPTR, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1, MEM_NULLUMPTR };
+	static style[e_TDC_ENUM] = { 1, 0.0, 0.0, MEM_NULLUMPTR, 0, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1, MEM_NULLUMPTR, 0 };
 	for (new id = 0; id < MAX_TEXT_DRAWS; ++id) {
 		//new slot = playerid * MAX_PLAYERS + id;
 		if (!gPlayerTDs[playerid][id]) {
@@ -974,8 +975,9 @@ stock PlayerText:TDC_PlayerTDCreate(playerid, Float:x, Float:y, text[]) {
 			}
 			MEM_UM_set_arr(slot, 0, style, e_TDC_ENUM);
 			MEM_UM_set_val(slot, e_TDC_TEXT, mem);
-			MEM_UM_set_val(slot, TDC_X, x);
-			MEM_UM_set_val(slot, TDC_Y, y);
+			MEM_UM_set_val(slot, e_TDC_TEXT_LEN, len);
+			MEM_UM_set_val(slot, e_TDC_X, x);
+			MEM_UM_set_val(slot, e_TDC_Y, y);
 			return PlayerText:id;
 		}
 	}
@@ -1083,26 +1085,35 @@ stock TDC_PlayerTDSetSelectable(playerid, PlayerText:text, set) {
 stock TDC_PlayerTDSetPos(playerid, PlayerText:text, Float:x, Float:y) {
 	if (TDC_ValidPlayer(playerid, text)) {
 		new slot = gPlayerTDs[playerid][text];
-		MEM_UM_set_val(slot, TDC_X, x);
-		MEM_UM_set_val(slot, TDC_Y, y);
+		MEM_UM_set_val(slot, e_TDC_X, x);
+		MEM_UM_set_val(slot, e_TDC_Y, y);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDShow(playerid, PlayerText:text) {
-	if (TDC_ValidPlayer(playerid, text) && Iter_Contains(Player, playerid)) {
-		MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_FLAGS) |= 8;
-		TDC_UpdatePlayer(playerid, _:text);
+	if (TDC_ValidPlayer(playerid, text) && IsPlayerConnected(playerid)) {
+		new slot = gPlayerTDs[playerid][text];
+		new flags = MEM_UM_get_val(slot, e_TDC_FLAGS);
+		if (!(flags & 8)) {
+			MEM_UM_set_val(slot, e_TDC_FLAGS, flags | 8);
+			TDC_UpdatePlayer(playerid, _:text);
+		}
 	}
 }
 
 stock TDC_PlayerTDHide(playerid, PlayerText:text) {
-	if (TDC_ValidPlayer(playerid, text) && Iter_Contains(Player, playerid)) {
-		MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_FLAGS) &= ~8;
-		foreach (new t : gPlayerTDs[playerid]<(_:text)>) {
-			PlayerTextDrawDestroy(playerid, PlayerText:t);
+	if (TDC_ValidPlayer(playerid, text) && IsPlayerConnected(playerid)) {
+		new slot = gPlayerTDs[playerid][text];
+		new flags = MEM_UM_get_val(slot, e_TDC_FLAGS);
+		if (flags & 8) {
+			MEM_UM_set_val(slot, e_TDC_FLAGS, flags & ~8);
+			TDC_UpdatePlayer(playerid, _:text);
 		}
-		Iter_Clear(gPlayerTDs[playerid]<_:text>);
+		for (new i = 0, j = MEM_UM_get_val(slot, e_TDC_TDS_COUNT), p = MEM_UM_get_val(slot, e_TDC_TDS); i != j; ++i) {
+			PlayerTextDrawDestroy(playerid, PlayerText:MEM_UM_get_val(UnmanagedPointer:p, i));
+		}
+		MEM_UM_set_val(slot, e_TDC_TDS_COUNT, 0);
 	}
 }
 
@@ -1121,6 +1132,7 @@ stock TDC_PlayerTDSetString(playerid, PlayerText:text, string[]) {
 		}
 		MEM_UM_delete(MEM_UM_get_val(slot, e_TDC_TEXT));
 		MEM_UM_set_val(slot, e_TDC_TEXT, mem);
+		MEM_UM_set_val(slot, e_TDC_TEXT_LEN, len);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
@@ -1277,8 +1289,8 @@ stock bool:TDC_PlayerTDGetSelectable(playerid, PlayerText:text, &bool:set) {
 stock bool:TDC_PlayerTDGetPos(playerid, PlayerText:text, &Float:x, &Float:y) {
 	if (TDC_ValidPlayer(playerid, text)) {
 		new slot = gPlayerTDs[playerid][text];
-		x = MEM_UM_get_val(slot, TDC_X);
-		y = MEM_UM_get_val(slot, TDC_Y);
+		x = MEM_UM_get_val(slot, e_TDC_X);
+		y = MEM_UM_get_val(slot, e_TDC_Y);
 		return true;
 	} else {
 		return false;
@@ -1287,8 +1299,10 @@ stock bool:TDC_PlayerTDGetPos(playerid, PlayerText:text, &Float:x, &Float:y) {
 
 stock bool:TDC_PlayerTDGetString(playerid, PlayerText:text, string[], size = sizeof (string)) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		string[0] = '\0';
-		strcat(string, Malloc_FastString(MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_TEXT)), size);
+		new slot = gPlayerTDs[playerid][text];
+		new len = min(MEM_UM_get_val(slot, e_TDC_TEXT_LEN), size - 1);
+		MEM_UM_get_arr(UnmanagedPointer:MEM_UM_get_val(slot, e_TDC_TEXT), 0, string, len);
+		string[len] = '\0';
 		return true;
 	} else {
 		return false;
