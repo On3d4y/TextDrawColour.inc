@@ -1,5 +1,6 @@
 #include <a_samp>
 #include <Pawn.Regex>
+#include <memory>
 #include <YSI\y_iterate>
 #include <YSI\y_hooks>
 #include <YSI\y_malloc>
@@ -338,54 +339,47 @@ static stock TDC_GetLineEnd(font, text[], pos, Float:max, bool:prop, Float:outli
 	return last;
 }
 
-#if !defined MAX_COLOURED_TEXT_DRAWS
-	#define MAX_COLOURED_TEXT_DRAWS MAX_TEXT_DRAWS
-#endif
-
-#if !defined MAX_COLOURED_PLAYER_TEXT_DRAWS
-	#define MAX_COLOURED_PLAYER_TEXT_DRAWS MAX_COLOURED_TEXT_DRAWS
-#endif
-
-enum TDC_ENUM {
-	TDC_FLAGS,
+enum e_TDC_ENUM {
+	e_TDC_FLAGS,
 	Float:TDC_X,
 	Float:TDC_Y,
-	Alloc:TDC_TEXT,
-	TDC_FONT,
-	TDC_ALIGNMENT,
-	Float:TDC_WIDTH,
-	Float:TDC_HEIGHT,
-	TDC_SHADOW,
-	TDC_OUTLINE,
-	bool:TDC_PROP,
-	Float:TDC_FONTX,
-	Float:TDC_FONTY,
-	bool:TDC_BOX,
-	bool:TDC_SELECTABLE,
-	TDC_COLOUR,
-	TDC_BG,
-	TDC_BC,
-	Float:TDC_ROT_X,
-	Float:TDC_ROT_Y,
-	Float:TDC_ROT_Z,
-	Float:TDC_ZOOM,
-	TDC_MODEL,
-	TDC_COLOUR_1,
-	TDC_COLOUR_2,
-	Text:TDC_BOX_TD
+	Alloc:e_TDC_TEXT,
+	e_TDC_FONT,
+	e_TDC_ALIGNMENT,
+	Float:e_TDC_WIDTH,
+	Float:e_TDC_HEIGHT,
+	e_TDC_SHADOW,
+	e_TDC_OUTLINE,
+	bool:e_TDC_PROP,
+	Float:e_TDC_FONTX,
+	Float:e_TDC_FONTY,
+	bool:e_TDC_BOX,
+	bool:e_TDC_SELECTABLE,
+	e_TDC_COLOUR,
+	e_TDC_BG,
+	e_TDC_BC,
+	Float:e_TDC_ROT_X,
+	Float:e_TDC_ROT_Y,
+	Float:e_TDC_ROT_Z,
+	Float:e_TDC_ZOOM,
+	e_TDC_MODEL,
+	e_TDC_COLOUR_1,
+	e_TDC_COLOUR_2,
+	Text:e_TDC_BOX_TD
 }
 
-static stock Iterator:gPlayerTds[MAX_PLAYERS]<MAX_COLOURED_PLAYER_TEXT_DRAWS, MAX_TEXT_DRAWS>;
-static stock Iterator:gPlayers[MAX_COLOURED_TEXT_DRAWS]<MAX_PLAYERS>;
-static stock Iterator:gTds<MAX_COLOURED_TEXT_DRAWS, MAX_TEXT_DRAWS>;
-static stock gStyle[MAX_COLOURED_TEXT_DRAWS][TDC_ENUM];
-static stock gPlayerStyle[MAX_PLAYERS * MAX_COLOURED_PLAYER_TEXT_DRAWS][TDC_ENUM];
+static stock Iterator:gPlayerTds[MAX_PLAYERS]<MAX_TEXT_DRAWS, MAX_TEXT_DRAWS>;
+static stock Iterator:gPlayerTds[MAX_PLAYERS]<MAX_TEXT_DRAWS, MAX_TEXT_DRAWS>;
+static stock Iterator:gPlayers[MAX_TEXT_DRAWS]<MAX_PLAYERS>;
+static stock Iterator:gTds<MAX_TEXT_DRAWS, MAX_TEXT_DRAWS>;
+static stock gStyle[MAX_TEXT_DRAWS][e_TDC_ENUM];
+static stock gPlayerStyle[MAX_PLAYERS * MAX_TEXT_DRAWS][e_TDC_ENUM];
 
 hook OnPlayerDisconnect(playerid, reason) {
-	for (new Text:id = Text:0; id < Text:MAX_COLOURED_TEXT_DRAWS; id++) {
+	for (new Text:id = Text:0; id < Text:MAX_TEXT_DRAWS; id++) {
 		TDC_TextDrawHideForPlayer(playerid, id);
 	}
-	for (new PlayerText:id = PlayerText:0; id < PlayerText:MAX_COLOURED_PLAYER_TEXT_DRAWS; id++) {
+	for (new PlayerText:id = PlayerText:0; id < PlayerText:MAX_TEXT_DRAWS; id++) {
 		TDC_PlayerTDDestroy(playerid, id);
 	}
 }
@@ -512,34 +506,34 @@ static stock TDC_Render(playerid, id, Float:x, Float:y, text[], font, alignment,
 }
 
 static stock bool:TDC_ValidGlobal(Text:id) {
-	return (Text:0 <= id < Text:MAX_COLOURED_TEXT_DRAWS && (gStyle[_:id][TDC_FLAGS] & 1));
+	return (Text:0 <= id < Text:MAX_TEXT_DRAWS && (gStyle[_:id][e_TDC_FLAGS] & 1));
 }
 
 static stock bool:TDC_ValidPlayer(playerid, PlayerText:id) {
-	return (PlayerText:0 <= id < PlayerText:MAX_COLOURED_PLAYER_TEXT_DRAWS && (gPlayerStyle[playerid * MAX_PLAYERS + _:id][TDC_FLAGS] & 1));
+	return (PlayerText:0 <= id < PlayerText:MAX_TEXT_DRAWS && (gPlayerStyle[playerid * MAX_PLAYERS + _:id][e_TDC_FLAGS] & 1));
 }
 
 #define Malloc_FastString(%1) Malloc_NextSlot(_:(%1))
 
 static stock TDC_UpdateGlobal(id) {
-	if (gStyle[id][TDC_FLAGS] & 4) {
+	if (gStyle[id][e_TDC_FLAGS] & 4) {
 		foreach (new t : gTds<id>) {
 			TextDrawDestroy(Text:t);
 		}
 		Iter_Clear(gTds<id>);
 		TDC_Render(INVALID_PLAYER_ID, id,
 				gStyle[id][TDC_X],                       gStyle[id][TDC_Y],
-				Malloc_FastString(gStyle[id][TDC_TEXT]), gStyle[id][TDC_FONT],
-				gStyle[id][TDC_ALIGNMENT],               gStyle[id][TDC_WIDTH],
-				gStyle[id][TDC_HEIGHT],                  gStyle[id][TDC_SHADOW],
-				gStyle[id][TDC_OUTLINE],                 gStyle[id][TDC_PROP],
-				gStyle[id][TDC_FONTX],                   gStyle[id][TDC_FONTY],
-				gStyle[id][TDC_BOX],                     gStyle[id][TDC_COLOUR],
-				gStyle[id][TDC_BG],                      gStyle[id][TDC_BC],
-				gStyle[id][TDC_MODEL],                   gStyle[id][TDC_ROT_X],
-				gStyle[id][TDC_ROT_Y],                   gStyle[id][TDC_ROT_Z],
-				gStyle[id][TDC_ZOOM],                    gStyle[id][TDC_COLOUR_1],
-				gStyle[id][TDC_COLOUR_2],                gStyle[id][TDC_SELECTABLE]);
+				Malloc_FastString(gStyle[id][e_TDC_TEXT]), gStyle[id][e_TDC_FONT],
+				gStyle[id][e_TDC_ALIGNMENT],               gStyle[id][e_TDC_WIDTH],
+				gStyle[id][e_TDC_HEIGHT],                  gStyle[id][e_TDC_SHADOW],
+				gStyle[id][e_TDC_OUTLINE],                 gStyle[id][e_TDC_PROP],
+				gStyle[id][e_TDC_FONTX],                   gStyle[id][e_TDC_FONTY],
+				gStyle[id][e_TDC_BOX],                     gStyle[id][e_TDC_COLOUR],
+				gStyle[id][e_TDC_BG],                      gStyle[id][e_TDC_BC],
+				gStyle[id][e_TDC_MODEL],                   gStyle[id][e_TDC_ROT_X],
+				gStyle[id][e_TDC_ROT_Y],                   gStyle[id][e_TDC_ROT_Z],
+				gStyle[id][e_TDC_ZOOM],                    gStyle[id][e_TDC_COLOUR_1],
+				gStyle[id][e_TDC_COLOUR_2],                gStyle[id][e_TDC_SELECTABLE]);
 		foreach (new t : gTds<id>) {
 			foreach (new playerid : gPlayers[id]) {
 				TextDrawShowForPlayer(playerid, Text:t);
@@ -556,18 +550,18 @@ static stock TDC_UpdatePlayer(playerid, id) {
 	Iter_Clear(gPlayerTds[playerid]<id>);
 	TDC_Render(playerid, id,
 			gPlayerStyle[slot][TDC_X],                      gPlayerStyle[slot][TDC_Y],
-			Malloc_FastString(gPlayerStyle[slot][TDC_TEXT]), gPlayerStyle[slot][TDC_FONT],
-			gPlayerStyle[slot][TDC_ALIGNMENT],               gPlayerStyle[slot][TDC_WIDTH],
-			gPlayerStyle[slot][TDC_HEIGHT],                  gPlayerStyle[slot][TDC_SHADOW],
-			gPlayerStyle[slot][TDC_OUTLINE],                 gPlayerStyle[slot][TDC_PROP],
-			gPlayerStyle[slot][TDC_FONTX],                   gPlayerStyle[slot][TDC_FONTY],
-			gPlayerStyle[slot][TDC_BOX],                     gPlayerStyle[slot][TDC_COLOUR],
-			gPlayerStyle[slot][TDC_BG],                      gPlayerStyle[slot][TDC_BC],
-			gPlayerStyle[slot][TDC_MODEL],                   gPlayerStyle[slot][TDC_ROT_X],
-			gPlayerStyle[slot][TDC_ROT_Y],                   gPlayerStyle[slot][TDC_ROT_Z],
-			gPlayerStyle[slot][TDC_ZOOM],                    gPlayerStyle[slot][TDC_COLOUR_1],
-			gPlayerStyle[slot][TDC_COLOUR_2],                gPlayerStyle[slot][TDC_SELECTABLE]);
-	if (gPlayerStyle[slot][TDC_FLAGS] & 8) {
+			Malloc_FastString(gPlayerStyle[slot][e_TDC_TEXT]), gPlayerStyle[slot][e_TDC_FONT],
+			gPlayerStyle[slot][e_TDC_ALIGNMENT],               gPlayerStyle[slot][e_TDC_WIDTH],
+			gPlayerStyle[slot][e_TDC_HEIGHT],                  gPlayerStyle[slot][e_TDC_SHADOW],
+			gPlayerStyle[slot][e_TDC_OUTLINE],                 gPlayerStyle[slot][e_TDC_PROP],
+			gPlayerStyle[slot][e_TDC_FONTX],                   gPlayerStyle[slot][e_TDC_FONTY],
+			gPlayerStyle[slot][e_TDC_BOX],                     gPlayerStyle[slot][e_TDC_COLOUR],
+			gPlayerStyle[slot][e_TDC_BG],                      gPlayerStyle[slot][e_TDC_BC],
+			gPlayerStyle[slot][e_TDC_MODEL],                   gPlayerStyle[slot][e_TDC_ROT_X],
+			gPlayerStyle[slot][e_TDC_ROT_Y],                   gPlayerStyle[slot][e_TDC_ROT_Z],
+			gPlayerStyle[slot][e_TDC_ZOOM],                    gPlayerStyle[slot][e_TDC_COLOUR_1],
+			gPlayerStyle[slot][e_TDC_COLOUR_2],                gPlayerStyle[slot][e_TDC_SELECTABLE]);
+	if (gPlayerStyle[slot][e_TDC_FLAGS] & 8) {
 		foreach (new t : gPlayerTds[playerid]<id>) {
 			PlayerTextDrawShow(playerid, PlayerText:t);
 		}
@@ -575,9 +569,9 @@ static stock TDC_UpdatePlayer(playerid, id) {
 }
 
 stock Text:TDC_TextDrawCreate(Float:x, Float:y, text[]) {
-	static style[TDC_ENUM] = { 1, 0.0, 0.0, NO_ALLOC, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1 };
-	for (new id = 0; id < MAX_COLOURED_TEXT_DRAWS; ++id) {
-		if (!(gStyle[id][TDC_FLAGS] & 1)) {
+	static style[e_TDC_ENUM] = { 1, 0.0, 0.0, NO_ALLOC, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1 };
+	for (new id = 0; id < MAX_TEXT_DRAWS; ++id) {
+		if (!(gStyle[id][e_TDC_FLAGS] & 1)) {
 			new len = strlen(text);
 			new Alloc:mem = malloc(len + 1);
 			if (mem == NO_ALLOC) {
@@ -591,7 +585,7 @@ stock Text:TDC_TextDrawCreate(Float:x, Float:y, text[]) {
 				strcat(Malloc_FastString(mem), text, len + 1);
 			}
 			gStyle[id] = style;
-			gStyle[id][TDC_TEXT] = mem;
+			gStyle[id][e_TDC_TEXT] = mem;
 			gStyle[id][TDC_X] = x;
 			gStyle[id][TDC_Y] = y;
 			return Text:id;
@@ -603,23 +597,23 @@ stock Text:TDC_TextDrawCreate(Float:x, Float:y, text[]) {
 stock TDC_TextDrawDestroy(Text:text) {
 	if (TDC_ValidGlobal(text)) {
 		TDC_TextDrawHideForAll(text);
-		gStyle[_:text][TDC_FLAGS] = 0;
-		free(gStyle[_:text][TDC_TEXT]);
+		gStyle[_:text][e_TDC_FLAGS] = 0;
+		free(gStyle[_:text][e_TDC_TEXT]);
 	}
 }
 
 stock TDC_TextDrawLetterSize(Text:text, Float:x, Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_FONTX] = x;
-		gStyle[_:text][TDC_FONTY] = y;
+		gStyle[_:text][e_TDC_FONTX] = x;
+		gStyle[_:text][e_TDC_FONTY] = y;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawTextSize(Text:text, Float:x, Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_WIDTH] = x;
-		gStyle[_:text][TDC_HEIGHT] = y;
+		gStyle[_:text][e_TDC_WIDTH] = x;
+		gStyle[_:text][e_TDC_HEIGHT] = y;
 		TDC_UpdateGlobal(_:text);
 	}
 }
@@ -627,70 +621,70 @@ stock TDC_TextDrawTextSize(Text:text, Float:x, Float:y) {
 stock TDC_TextDrawAlignment(Text:text, alignment) {
 	/* 1 = left, 2 = centre, 3 = right, 4 = fixed right, 5 = justify */
 	if (TDC_ValidGlobal(text) && 1 <= alignment <= 5) {
-		gStyle[_:text][TDC_ALIGNMENT] = alignment;
+		gStyle[_:text][e_TDC_ALIGNMENT] = alignment;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawColor(Text:text, color) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_COLOUR] = color;
+		gStyle[_:text][e_TDC_COLOUR] = color;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawUseBox(Text:text, use) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_BOX] = !!use;
+		gStyle[_:text][e_TDC_BOX] = !!use;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawBoxColor(Text:text, color) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_BC] = color;
+		gStyle[_:text][e_TDC_BC] = color;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetShadow(Text:text, size) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_SHADOW] = size;
+		gStyle[_:text][e_TDC_SHADOW] = size;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetOutline(Text:text, size) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_OUTLINE] = size;
+		gStyle[_:text][e_TDC_OUTLINE] = size;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawBackgroundColor(Text:text, color) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_BG] = color;
+		gStyle[_:text][e_TDC_BG] = color;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawFont(Text:text, font) {
 	if (TDC_ValidGlobal(text) && 0 <= font <= 5) {
-		gStyle[_:text][TDC_FONT] = font;
+		gStyle[_:text][e_TDC_FONT] = font;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetProportional(Text:text, set) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_PROP] = !!set;
+		gStyle[_:text][e_TDC_PROP] = !!set;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetSelectable(Text:text, set) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_SELECTABLE] = !!set;
+		gStyle[_:text][e_TDC_SELECTABLE] = !!set;
 		TDC_UpdateGlobal(_:text);
 	}
 }
@@ -706,12 +700,12 @@ stock TDC_TextDrawSetPos(Text:text, Float:x, Float:y) {
 stock TDC_TextDrawShowForPlayer(playerid, Text:text) {
 	if (TDC_ValidGlobal(text) && Iter_Contains(Player, playerid) && !Iter_Contains(gPlayers[_:text], playerid)) {
 		Iter_Add(gPlayers[_:text], playerid);
-		if (gStyle[_:text][TDC_FLAGS] & 4) {
+		if (gStyle[_:text][e_TDC_FLAGS] & 4) {
 			foreach (new t : gTds<(_:text)>) {
 				TextDrawShowForPlayer(playerid, Text:t);
 			}
 		} else {
-			gStyle[_:text][TDC_FLAGS] |= 4;
+			gStyle[_:text][e_TDC_FLAGS] |= 4;
 			TDC_UpdateGlobal(_:text);
 		}
 	}
@@ -721,7 +715,7 @@ stock TDC_TextDrawHideForPlayer(playerid, Text:text) {
 	if (TDC_ValidGlobal(text) && Iter_Contains(gPlayers[_:text], playerid)) {
 		Iter_Remove(gPlayers[_:text], playerid);
 		if (Iter_Count(gPlayers[_:text] == 0)) {
-			gStyle[_:text][TDC_FLAGS] &= ~4;
+			gStyle[_:text][e_TDC_FLAGS] &= ~4;
 			foreach (new t : gTds<(_:text)>) {
 				TextDrawDestroy(Text:t);
 			}
@@ -736,7 +730,7 @@ stock TDC_TextDrawHideForPlayer(playerid, Text:text) {
 
 stock TDC_TextDrawShowForAll(Text:text) {
 	if (TDC_ValidGlobal(text) && Iter_Count(Player)) {
-		gStyle[_:text][TDC_FLAGS] |= 4;
+		gStyle[_:text][e_TDC_FLAGS] |= 4;
 		Iter_TrueArray(gPlayers[text]) = Iter_TrueArray(Player);
 		Iter_TrueCount(gPlayers[text]) = Iter_TrueCount(Player);
 		TDC_UpdateGlobal(_:text);
@@ -745,7 +739,7 @@ stock TDC_TextDrawShowForAll(Text:text) {
 
 stock TDC_TextDrawHideForAll(Text:text) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_FLAGS] &= ~4;
+		gStyle[_:text][e_TDC_FLAGS] &= ~4;
 		foreach (new t : gTds<(_:text)>) {
 			TextDrawDestroy(Text:t);
 		}
@@ -767,41 +761,41 @@ stock TDC_TextDrawSetString(Text:text, string[]) {
 			Malloc_SetData(mem, 0, '\0');
 			strcat(Malloc_FastString(mem), string, len + 1);
 		}
-		free(gStyle[_:text][TDC_TEXT]);
-		gStyle[_:text][TDC_TEXT] = mem;
+		free(gStyle[_:text][e_TDC_TEXT]);
+		gStyle[_:text][e_TDC_TEXT] = mem;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetPreviewModel(Text:text, modelindex) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][TDC_FONT] == 5) {
-		gStyle[_:text][TDC_MODEL] = modelindex;
+	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
+		gStyle[_:text][e_TDC_MODEL] = modelindex;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetPreviewRot(Text:text, Float:fRotX, Float:fRotY, Float:fRotZ, Float:fZoom = 1.0) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][TDC_FONT] == 5) {
-		gStyle[_:text][TDC_ROT_X] = fRotX;
-		gStyle[_:text][TDC_ROT_Y] = fRotY;
-		gStyle[_:text][TDC_ROT_Z] = fRotZ;
-		gStyle[_:text][TDC_ZOOM] = fZoom;
+	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
+		gStyle[_:text][e_TDC_ROT_X] = fRotX;
+		gStyle[_:text][e_TDC_ROT_Y] = fRotY;
+		gStyle[_:text][e_TDC_ROT_Z] = fRotZ;
+		gStyle[_:text][e_TDC_ZOOM] = fZoom;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetPreviewVehCol(Text:text, color1, color2) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][TDC_FONT] == 5) {
-		gStyle[_:text][TDC_COLOUR_1] = color1;
-		gStyle[_:text][TDC_COLOUR_2] = color2;
+	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
+		gStyle[_:text][e_TDC_COLOUR_1] = color1;
+		gStyle[_:text][e_TDC_COLOUR_2] = color2;
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock bool:TDC_TextDrawGetLetterSize(Text:text, &Float:x, &Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		x = gStyle[_:text][TDC_FONTX];
-		y = gStyle[_:text][TDC_FONTY];
+		x = gStyle[_:text][e_TDC_FONTX];
+		y = gStyle[_:text][e_TDC_FONTY];
 		return true;
 	} else {
 		return false;
@@ -810,8 +804,8 @@ stock bool:TDC_TextDrawGetLetterSize(Text:text, &Float:x, &Float:y) {
 
 stock bool:TDC_TextDrawGetTextSize(Text:text, &Float:x, &Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		x = gStyle[_:text][TDC_WIDTH];
-		y = gStyle[_:text][TDC_HEIGHT];
+		x = gStyle[_:text][e_TDC_WIDTH];
+		y = gStyle[_:text][e_TDC_HEIGHT];
 		return true;
 	} else {
 		return false;
@@ -820,7 +814,7 @@ stock bool:TDC_TextDrawGetTextSize(Text:text, &Float:x, &Float:y) {
 
 stock bool:TDC_TextDrawGetAlignment(Text:text, &alignment) {
 	if (TDC_ValidGlobal(text)) {
-		alignment = gStyle[_:text][TDC_ALIGNMENT];
+		alignment = gStyle[_:text][e_TDC_ALIGNMENT];
 		return true;
 	} else {
 		return false;
@@ -829,7 +823,7 @@ stock bool:TDC_TextDrawGetAlignment(Text:text, &alignment) {
 
 stock bool:TDC_TextDrawGetColor(Text:text, &color) {
 	if (TDC_ValidGlobal(text)) {
-		color = gStyle[_:text][TDC_COLOUR];
+		color = gStyle[_:text][e_TDC_COLOUR];
 		return true;
 	} else {
 		return false;
@@ -838,7 +832,7 @@ stock bool:TDC_TextDrawGetColor(Text:text, &color) {
 
 stock bool:TDC_TextDrawGetUseBox(Text:text, &bool:use) {
 	if (TDC_ValidGlobal(text)) {
-		use = gStyle[_:text][TDC_BOX];
+		use = gStyle[_:text][e_TDC_BOX];
 		return true;
 	} else {
 		return false;
@@ -847,7 +841,7 @@ stock bool:TDC_TextDrawGetUseBox(Text:text, &bool:use) {
 
 stock bool:TDC_TextDrawGetBoxColor(Text:text, &color) {
 	if (TDC_ValidGlobal(text)) {
-		color = gStyle[_:text][TDC_BC];
+		color = gStyle[_:text][e_TDC_BC];
 		return true;
 	} else {
 		return false;
@@ -856,7 +850,7 @@ stock bool:TDC_TextDrawGetBoxColor(Text:text, &color) {
 
 stock bool:TDC_TextDrawGetShadow(Text:text, &size) {
 	if (TDC_ValidGlobal(text)) {
-		size = gStyle[_:text][TDC_SHADOW];
+		size = gStyle[_:text][e_TDC_SHADOW];
 		return true;
 	} else {
 		return false;
@@ -865,7 +859,7 @@ stock bool:TDC_TextDrawGetShadow(Text:text, &size) {
 
 stock bool:TDC_TextDrawGetOutline(Text:text, &size) {
 	if (TDC_ValidGlobal(text)) {
-		size = gStyle[_:text][TDC_OUTLINE];
+		size = gStyle[_:text][e_TDC_OUTLINE];
 		return true;
 	} else {
 		return false;
@@ -874,7 +868,7 @@ stock bool:TDC_TextDrawGetOutline(Text:text, &size) {
 
 stock bool:TDC_TextDrawGetBackgroundColor(Text:text, &color) {
 	if (TDC_ValidGlobal(text)) {
-		color = gStyle[_:text][TDC_BG];
+		color = gStyle[_:text][e_TDC_BG];
 		return true;
 	} else {
 		return false;
@@ -883,7 +877,7 @@ stock bool:TDC_TextDrawGetBackgroundColor(Text:text, &color) {
 
 stock bool:TDC_TextDrawGetFont(Text:text, &font) {
 	if (TDC_ValidGlobal(text)) {
-		font = gStyle[_:text][TDC_FONT];
+		font = gStyle[_:text][e_TDC_FONT];
 		return true;
 	} else {
 		return false;
@@ -892,7 +886,7 @@ stock bool:TDC_TextDrawGetFont(Text:text, &font) {
 
 stock bool:TDC_TextDrawGetProportional(Text:text, &bool:set) {
 	if (TDC_ValidGlobal(text)) {
-		set = gStyle[_:text][TDC_PROP];
+		set = gStyle[_:text][e_TDC_PROP];
 		return true;
 	} else {
 		return false;
@@ -901,7 +895,7 @@ stock bool:TDC_TextDrawGetProportional(Text:text, &bool:set) {
 
 stock bool:TDC_TextDrawGetSelectable(Text:text, &bool:set) {
 	if (TDC_ValidGlobal(text)) {
-		set = gStyle[_:text][TDC_SELECTABLE];
+		set = gStyle[_:text][e_TDC_SELECTABLE];
 		return true;
 	} else {
 		return false;
@@ -921,7 +915,7 @@ stock bool:TDC_TextDrawGetPos(Text:text, &Float:x, &Float:y) {
 stock bool:TDC_TextDrawGetString(Text:text, string[], size = sizeof (string)) {
 	if (TDC_ValidGlobal(text)) {
 		string[0] = '\0';
-		strcat(string, Malloc_FastString(gStyle[_:text][TDC_TEXT]), size);
+		strcat(string, Malloc_FastString(gStyle[_:text][e_TDC_TEXT]), size);
 		return true;
 	} else {
 		return false;
@@ -929,8 +923,8 @@ stock bool:TDC_TextDrawGetString(Text:text, string[], size = sizeof (string)) {
 }
 
 stock bool:TDC_TextDrawGetPreviewModel(Text:text, &modelindex) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][TDC_FONT] == 5) {
-		modelindex = gStyle[_:text][TDC_MODEL];
+	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
+		modelindex = gStyle[_:text][e_TDC_MODEL];
 		return true;
 	} else {
 		return false;
@@ -938,11 +932,11 @@ stock bool:TDC_TextDrawGetPreviewModel(Text:text, &modelindex) {
 }
 
 stock bool:TDC_TextDrawGetPreviewRot(Text:text, &Float:fRotX, &Float:fRotY, &Float:fRotZ, &Float:fZoom = 1.0) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][TDC_FONT] == 5) {
-		fRotX = gStyle[_:text][TDC_ROT_X];
-		fRotY = gStyle[_:text][TDC_ROT_Y];
-		fRotZ = gStyle[_:text][TDC_ROT_Z];
-		fZoom = gStyle[_:text][TDC_ZOOM];
+	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
+		fRotX = gStyle[_:text][e_TDC_ROT_X];
+		fRotY = gStyle[_:text][e_TDC_ROT_Y];
+		fRotZ = gStyle[_:text][e_TDC_ROT_Z];
+		fZoom = gStyle[_:text][e_TDC_ZOOM];
 		return true;
 	} else {
 		return false;
@@ -950,9 +944,9 @@ stock bool:TDC_TextDrawGetPreviewRot(Text:text, &Float:fRotX, &Float:fRotY, &Flo
 }
 
 stock bool:TDC_TextDrawGetPreviewVehCol(Text:text, &color1, &color2) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][TDC_FONT] == 5) {
-		color1 = gStyle[_:text][TDC_COLOUR_1];
-		color2 = gStyle[_:text][TDC_COLOUR_2];
+	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
+		color1 = gStyle[_:text][e_TDC_COLOUR_1];
+		color2 = gStyle[_:text][e_TDC_COLOUR_2];
 		return true;
 	} else {
 		return false;
@@ -960,10 +954,10 @@ stock bool:TDC_TextDrawGetPreviewVehCol(Text:text, &color1, &color2) {
 }
 
 stock PlayerText:TDC_PlayerTDCreate(playerid, Float:x, Float:y, text[]) {
-	static style[TDC_ENUM] = { 1, 0.0, 0.0, NO_ALLOC, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1 };
-	for (new id = 0; id < MAX_COLOURED_PLAYER_TEXT_DRAWS; ++id) {
+	static style[e_TDC_ENUM] = { 1, 0.0, 0.0, NO_ALLOC, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1 };
+	for (new id = 0; id < MAX_TEXT_DRAWS; ++id) {
 		new slot = playerid * MAX_PLAYERS + id;
-		if (!(gPlayerStyle[slot][TDC_FLAGS] & 1)) {
+		if (!(gPlayerStyle[slot][e_TDC_FLAGS] & 1)) {
 			new len = strlen(text);
 			new Alloc:mem = malloc(len + 1);
 			if (mem == NO_ALLOC) {
@@ -977,7 +971,7 @@ stock PlayerText:TDC_PlayerTDCreate(playerid, Float:x, Float:y, text[]) {
 				strcat(Malloc_FastString(mem), text, len + 1);
 			}
 			gPlayerStyle[slot] = style;
-			gPlayerStyle[slot][TDC_TEXT] = mem;
+			gPlayerStyle[slot][e_TDC_TEXT] = mem;
 			gPlayerStyle[slot][TDC_X] = x;
 			gPlayerStyle[slot][TDC_Y] = y;
 			return PlayerText:id;
@@ -990,16 +984,16 @@ stock TDC_PlayerTDDestroy(playerid, PlayerText:text) {
 	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
 		TDC_PlayerTDHide(playerid, text);
-		gPlayerStyle[slot][TDC_FLAGS] = 0;
-		free(gPlayerStyle[slot][TDC_TEXT]);
+		gPlayerStyle[slot][e_TDC_FLAGS] = 0;
+		free(gPlayerStyle[slot][e_TDC_TEXT]);
 	}
 }
 
 stock TDC_PlayerTDLetterSize(playerid, PlayerText:text, Float:x, Float:y) {
 	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[slot][TDC_FONTX] = x;
-		gPlayerStyle[slot][TDC_FONTY] = y;
+		gPlayerStyle[slot][e_TDC_FONTX] = x;
+		gPlayerStyle[slot][e_TDC_FONTY] = y;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
@@ -1007,8 +1001,8 @@ stock TDC_PlayerTDLetterSize(playerid, PlayerText:text, Float:x, Float:y) {
 stock TDC_PlayerTDTextSize(playerid, PlayerText:text, Float:x, Float:y) {
 	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[slot][TDC_WIDTH] = x;
-		gPlayerStyle[slot][TDC_HEIGHT] = y;
+		gPlayerStyle[slot][e_TDC_WIDTH] = x;
+		gPlayerStyle[slot][e_TDC_HEIGHT] = y;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
@@ -1016,70 +1010,70 @@ stock TDC_PlayerTDTextSize(playerid, PlayerText:text, Float:x, Float:y) {
 stock TDC_PlayerTDAlignment(playerid, PlayerText:text, alignment) {
 	/* 1 = left, 2 = centre, 3 = right, 4 = fixed right, 5 = justify */
 	if (TDC_ValidPlayer(playerid, text) && 1 <= alignment <= 5) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_ALIGNMENT] = alignment;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_ALIGNMENT] = alignment;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDColor(playerid, PlayerText:text, color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_COLOUR] = color;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_COLOUR] = color;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDUseBox(playerid, PlayerText:text, use) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_BOX] = !!use;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BOX] = !!use;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDBoxColor(playerid, PlayerText:text, color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_BC] = color;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BC] = color;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetShadow(playerid, PlayerText:text, size) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_SHADOW] = size;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_SHADOW] = size;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetOutline(playerid, PlayerText:text, size) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_OUTLINE] = size;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_OUTLINE] = size;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDBackgroundColor(playerid, PlayerText:text, color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_BG] = color;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BG] = color;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDFont(playerid, PlayerText:text, font) {
 	if (TDC_ValidPlayer(playerid, text) && 0 <= font <= 5) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_FONT] = font;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_FONT] = font;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetProportional(playerid, PlayerText:text, set) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_PROP] = !!set;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_PROP] = !!set;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetSelectable(playerid, PlayerText:text, set) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_SELECTABLE] = !!set;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_SELECTABLE] = !!set;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
@@ -1095,14 +1089,14 @@ stock TDC_PlayerTDSetPos(playerid, PlayerText:text, Float:x, Float:y) {
 
 stock TDC_PlayerTDShow(playerid, PlayerText:text) {
 	if (TDC_ValidPlayer(playerid, text) && Iter_Contains(Player, playerid)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_FLAGS] |= 8;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_FLAGS] |= 8;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDHide(playerid, PlayerText:text) {
 	if (TDC_ValidPlayer(playerid, text) && Iter_Contains(Player, playerid)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_FLAGS] &= ~8;
+		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_FLAGS] &= ~8;
 		foreach (new t : gPlayerTds[playerid]<(_:text)>) {
 			PlayerTextDrawDestroy(playerid, PlayerText:t);
 		}
@@ -1125,36 +1119,36 @@ stock TDC_PlayerTDSetString(playerid, PlayerText:text, string[]) {
 			Malloc_SetData(mem, 0, '\0');
 			strcat(Malloc_FastString(mem), string, len + 1);
 		}
-		free(gPlayerStyle[slot][TDC_TEXT]);
-		gPlayerStyle[slot]][TDC_TEXT] = mem;
+		free(gPlayerStyle[slot][e_TDC_TEXT]);
+		gPlayerStyle[slot]][e_TDC_TEXT] = mem;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetPreviewModel(playerid, PlayerText:text, modelindex) {
 	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][TDC_FONT] == 5) {
-		gPlayerStyle[slot][TDC_MODEL] = modelindex;
+	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
+		gPlayerStyle[slot][e_TDC_MODEL] = modelindex;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetPreviewRot(playerid, PlayerText:text, Float:fRotX, Float:fRotY, Float:fRotZ, Float:fZoom = 1.0) {
 	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][TDC_FONT] == 5) {
-		gPlayerStyle[slot][TDC_ROT_X] = fRotX;
-		gPlayerStyle[slot][TDC_ROT_Y] = fRotY;
-		gPlayerStyle[slot][TDC_ROT_Z] = fRotZ;
-		gPlayerStyle[slot][TDC_ZOOM] = fZoom;
+	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
+		gPlayerStyle[slot][e_TDC_ROT_X] = fRotX;
+		gPlayerStyle[slot][e_TDC_ROT_Y] = fRotY;
+		gPlayerStyle[slot][e_TDC_ROT_Z] = fRotZ;
+		gPlayerStyle[slot][e_TDC_ZOOM] = fZoom;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetPreviewVehCol(playerid, PlayerText:text, color1, color2) {
 	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][TDC_FONT] == 5) {
-		gPlayerStyle[slot][TDC_COLOUR_1] = color1;
-		gPlayerStyle[slot][TDC_COLOUR_2] = color2;
+	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
+		gPlayerStyle[slot][e_TDC_COLOUR_1] = color1;
+		gPlayerStyle[slot][e_TDC_COLOUR_2] = color2;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
@@ -1162,8 +1156,8 @@ stock TDC_PlayerTDSetPreviewVehCol(playerid, PlayerText:text, color1, color2) {
 stock bool:TDC_PlayerTDGetLetterSize(playerid, PlayerText:text, &Float:x, &Float:y) {
 	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
-		x = gPlayerStyle[slot][TDC_FONTX];
-		y = gPlayerStyle[slot][TDC_FONTY];
+		x = gPlayerStyle[slot][e_TDC_FONTX];
+		y = gPlayerStyle[slot][e_TDC_FONTY];
 		return true;
 	} else {
 		return false;
@@ -1173,8 +1167,8 @@ stock bool:TDC_PlayerTDGetLetterSize(playerid, PlayerText:text, &Float:x, &Float
 stock bool:TDC_PlayerTDGetTextSize(playerid, PlayerText:text, &Float:x, &Float:y) {
 	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
-		x = gPlayerStyle[slot][TDC_WIDTH];
-		y = gPlayerStyle[slot][TDC_HEIGHT];
+		x = gPlayerStyle[slot][e_TDC_WIDTH];
+		y = gPlayerStyle[slot][e_TDC_HEIGHT];
 		return true;
 	} else {
 		return false;
@@ -1183,7 +1177,7 @@ stock bool:TDC_PlayerTDGetTextSize(playerid, PlayerText:text, &Float:x, &Float:y
 
 stock bool:TDC_PlayerTDGetAlignment(playerid, PlayerText:text, &alignment) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		alignment = gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_ALIGNMENT];
+		alignment = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_ALIGNMENT];
 		return true;
 	} else {
 		return false;
@@ -1192,7 +1186,7 @@ stock bool:TDC_PlayerTDGetAlignment(playerid, PlayerText:text, &alignment) {
 
 stock bool:TDC_PlayerTDGetColor(playerid, PlayerText:text, &color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		color = gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_COLOUR];
+		color = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_COLOUR];
 		return true;
 	} else {
 		return false;
@@ -1201,7 +1195,7 @@ stock bool:TDC_PlayerTDGetColor(playerid, PlayerText:text, &color) {
 
 stock bool:TDC_PlayerTDGetUseBox(playerid, PlayerText:text, &bool:use) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		use = gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_BOX];
+		use = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BOX];
 		return true;
 	} else {
 		return false;
@@ -1210,7 +1204,7 @@ stock bool:TDC_PlayerTDGetUseBox(playerid, PlayerText:text, &bool:use) {
 
 stock bool:TDC_PlayerTDGetBoxColor(playerid, PlayerText:text, &color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		color = gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_BC];
+		color = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BC];
 		return true;
 	} else {
 		return false;
@@ -1219,7 +1213,7 @@ stock bool:TDC_PlayerTDGetBoxColor(playerid, PlayerText:text, &color) {
 
 stock bool:TDC_PlayerTDGetShadow(playerid, PlayerText:text, &size) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		size = gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_SHADOW];
+		size = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_SHADOW];
 		return true;
 	} else {
 		return false;
@@ -1228,7 +1222,7 @@ stock bool:TDC_PlayerTDGetShadow(playerid, PlayerText:text, &size) {
 
 stock bool:TDC_PlayerTDGetOutline(playerid, PlayerText:text, &size) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		size = gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_OUTLINE];
+		size = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_OUTLINE];
 		return true;
 	} else {
 		return false;
@@ -1237,7 +1231,7 @@ stock bool:TDC_PlayerTDGetOutline(playerid, PlayerText:text, &size) {
 
 stock bool:TDC_PlayerTDGetBackgroundColor(playerid, PlayerText:text, &color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		color = gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_BG];
+		color = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BG];
 		return true;
 	} else {
 		return false;
@@ -1246,7 +1240,7 @@ stock bool:TDC_PlayerTDGetBackgroundColor(playerid, PlayerText:text, &color) {
 
 stock bool:TDC_PlayerTDGetFont(playerid, PlayerText:text, &font) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		font = gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_FONT];
+		font = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_FONT];
 		return true;
 	} else {
 		return false;
@@ -1255,7 +1249,7 @@ stock bool:TDC_PlayerTDGetFont(playerid, PlayerText:text, &font) {
 
 stock bool:TDC_PlayerTDGetProportional(playerid, PlayerText:text, &bool:set) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		set = gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_PROP];
+		set = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_PROP];
 		return true;
 	} else {
 		return false;
@@ -1264,7 +1258,7 @@ stock bool:TDC_PlayerTDGetProportional(playerid, PlayerText:text, &bool:set) {
 
 stock bool:TDC_PlayerTDGetSelectable(playerid, PlayerText:text, &bool:set) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		set = gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_SELECTABLE];
+		set = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_SELECTABLE];
 		return true;
 	} else {
 		return false;
@@ -1285,7 +1279,7 @@ stock bool:TDC_PlayerTDGetPos(playerid, PlayerText:text, &Float:x, &Float:y) {
 stock bool:TDC_PlayerTDGetString(playerid, PlayerText:text, string[], size = sizeof (string)) {
 	if (TDC_ValidPlayer(playerid, text)) {
 		string[0] = '\0';
-		strcat(string, Malloc_FastString(gPlayerStyle[playerid * MAX_PLAYERS + _:text][TDC_TEXT]), size);
+		strcat(string, Malloc_FastString(gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_TEXT]), size);
 		return true;
 	} else {
 		return false;
@@ -1294,8 +1288,8 @@ stock bool:TDC_PlayerTDGetString(playerid, PlayerText:text, string[], size = siz
 
 stock bool:TDC_PlayerTDGetPreviewModel(playerid, PlayerText:text, &modelindex) {
 	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][TDC_FONT] == 5) {
-		modelindex = gPlayerStyle[slot][TDC_MODEL];
+	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
+		modelindex = gPlayerStyle[slot][e_TDC_MODEL];
 		return true;
 	} else {
 		return false;
@@ -1304,11 +1298,11 @@ stock bool:TDC_PlayerTDGetPreviewModel(playerid, PlayerText:text, &modelindex) {
 
 stock bool:TDC_PlayerTDGetPreviewRot(playerid, PlayerText:text, &Float:fRotX, &Float:fRotY, &Float:fRotZ, &Float:fZoom = 1.0) {
 	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][TDC_FONT] == 5) {
-		fRotX = gPlayerStyle[slot][TDC_ROT_X];
-		fRotY = gPlayerStyle[slot][TDC_ROT_Y];
-		fRotZ = gPlayerStyle[slot][TDC_ROT_Z];
-		fZoom = gPlayerStyle[slot][TDC_ZOOM];
+	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
+		fRotX = gPlayerStyle[slot][e_TDC_ROT_X];
+		fRotY = gPlayerStyle[slot][e_TDC_ROT_Y];
+		fRotZ = gPlayerStyle[slot][e_TDC_ROT_Z];
+		fZoom = gPlayerStyle[slot][e_TDC_ZOOM];
 		return true;
 	} else {
 		return false;
@@ -1317,9 +1311,9 @@ stock bool:TDC_PlayerTDGetPreviewRot(playerid, PlayerText:text, &Float:fRotX, &F
 
 stock bool:TDC_PlayerTDGetPreviewVehCol(playerid, PlayerText:text, &color1, &color2) {
 	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][TDC_FONT] == 5) {
-		color1 = gPlayerStyle[slot][TDC_COLOUR_1];
-		color2 = gPlayerStyle[slot][TDC_COLOUR_2];
+	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
+		color1 = gPlayerStyle[slot][e_TDC_COLOUR_1];
+		color2 = gPlayerStyle[slot][e_TDC_COLOUR_2];
 		return true;
 	} else {
 		return false;
