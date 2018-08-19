@@ -226,7 +226,7 @@ static stock TDC_GetColour(str[]) {
 	return colour * 256 + 0xFF;
 }
 
-static stock Text:TDC_ShowGlobal(Float:x, Float:y, text[], font, alignment, Float:width, Float:height, shadow, outline, bool:prop, Float:fontx, Float:fonty, bool:box, colour, bg, bc, modelindex, Float:fRotX, Float:fRotY, Float:fRotZ, Float:fZoom, color1, color2, bool:select) {
+static stock Text:TDC_ShowGlobal(BitArray:players<MAX_PLAYERS>, Float:x, Float:y, text[], font, alignment, Float:width, Float:height, shadow, outline, bool:prop, Float:fontx, Float:fonty, bool:box, colour, bg, bc, modelindex, Float:fRotX, Float:fRotY, Float:fRotZ, Float:fZoom, color1, color2, bool:select) {
 	new Text:t = TextDrawCreate(x, y, text);
 	TextDrawLetterSize(t, fontx, fonty),
 	TextDrawAlignment(t, alignment),
@@ -244,6 +244,9 @@ static stock Text:TDC_ShowGlobal(Float:x, Float:y, text[], font, alignment, Floa
 		TextDrawSetPreviewModel(t, modelindex);
 		TextDrawSetPreviewRot(t, fRotX, fRotY, fRotZ, fZoom);
 		TextDrawSetPreviewVehCol(t, color1, color2);
+	}
+	foreach (new playerid : Bits(players)) {
+		TextDrawShowForPlayer(playerid, t);
 	}
 	return t;
 }
@@ -456,7 +459,7 @@ static stock TDC_Render(playerid, id, Float:x, Float:y, text[], font, alignment,
 				t = _:TDC_ShowPlayer(playerid, x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
 				//Iter_Add(gPlayerTDs[playerid]<id>, _:t);
 			} else {
-				t = _:TDC_ShowGlobal(x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
+				t = _:TDC_ShowGlobal(gPlayers[id], x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
 				//Iter_Add(gTDs<id>, _:t);
 			}
 			if (pc == pl) {
@@ -507,7 +510,7 @@ static stock TDC_Render(playerid, id, Float:x, Float:y, text[], font, alignment,
 		if (playerid == INVALID_PLAYER_ID) {
 			t = _:TDC_ShowPlayer(playerid, x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
 		} else {
-			t = _:TDC_ShowGlobal(x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
+			t = _:TDC_ShowGlobal(gPlayers[id], x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
 		}
 		if (pc == pl) {
 			new px = MEM_UM_new(pl * 2);
@@ -537,7 +540,7 @@ static stock bool:TDC_ValidGlobal(Text:id) {
 }
 
 static stock bool:TDC_ValidPlayer(playerid, PlayerText:id) {
-	return (PlayerText:0 <= id < PlayerText:MAX_TEXT_DRAWS && gPlayerTDs[playerid][id]);
+	return (PlayerText:0 <= id < PlayerText:MAX_TEXT_DRAWS && IsPlayerConnected(playerid) && gPlayerTDs[playerid][id]);
 }
 
 static stock gTempString[8192];
@@ -546,10 +549,14 @@ static stock TDC_UpdateGlobal(id) {
 	static style[e_TDC_ENUM];
 	MEM_UM_get_arr(gTDs[id], 0, style, e_TDC_ENUM);
 	if (style[e_TDC_FLAGS] & 4) {
-		foreach (new t : gTDs<id>) {
-			TextDrawDestroy(Text:t);
+		new UnmanagedPointer:p = style[e_TDC_TDS];
+		for (new i = 0, j = style[e_TDC_TDS_COUNT]; i != j; ++i) {
+			TextDrawDestroy(Text:MEM_UM_get_val(p, i));
 		}
-		Iter_Clear(gTDs<id>);
+		MEM_UM_delete(p);
+		new len = min(style[e_TDC_TEXT_LEN], sizeof (gTempString) - 1);
+		MEM_UM_get_arr(style[e_TDC_TEXT], 0, gTempString, len);
+		gTempString[len] = '\0';
 		TDC_Render(INVALID_PLAYER_ID, id,
 				style[e_TDC_X],         style[e_TDC_Y],        gTempString,            style[e_TDC_FONT],
 				style[e_TDC_ALIGNMENT], style[e_TDC_WIDTH],    style[e_TDC_HEIGHT],    style[e_TDC_SHADOW],
@@ -557,36 +564,29 @@ static stock TDC_UpdateGlobal(id) {
 				style[e_TDC_BOX],       style[e_TDC_COLOUR],   style[e_TDC_BG],        style[e_TDC_BC],
 				style[e_TDC_MODEL],     style[e_TDC_ROT_X],    style[e_TDC_ROT_Y],     style[e_TDC_ROT_Z],
 				style[e_TDC_ZOOM],      style[e_TDC_COLOUR_1], style[e_TDC_COLOUR_2],  style[e_TDC_SELECTABLE]);
-		foreach (new t : gTDs<id>) {
-			foreach (new playerid : Bits(gPlayers[id])) {
-				TextDrawShowForPlayer(playerid, Text:t);
-			}
-		}
 	}
 }
 
 static stock TDC_UpdatePlayer(playerid, id) {
 	static style[e_TDC_ENUM];
 	MEM_UM_get_arr(gPlayerTDs[playerid][id], 0, style, e_TDC_ENUM);
-	if (!(style[e_TDC_FLAGS] & 8)) {
-		return;
+	if (style[e_TDC_FLAGS] & 8) {
+		new UnmanagedPointer:p = style[e_TDC_TDS];
+		for (new i = 0, j = style[e_TDC_TDS_COUNT]; i != j; ++i) {
+			PlayerTextDrawDestroy(playerid, PlayerText:MEM_UM_get_val(p, i));
+		}
+		MEM_UM_delete(p);
+		new len = min(style[e_TDC_TEXT_LEN], sizeof (gTempString) - 1);
+		MEM_UM_get_arr(style[e_TDC_TEXT], 0, gTempString, len);
+		gTempString[len] = '\0';
+		TDC_Render(playerid, id,
+				style[e_TDC_X],         style[e_TDC_Y],        gTempString,            style[e_TDC_FONT],
+				style[e_TDC_ALIGNMENT], style[e_TDC_WIDTH],    style[e_TDC_HEIGHT],    style[e_TDC_SHADOW],
+				style[e_TDC_OUTLINE],   style[e_TDC_PROP],     style[e_TDC_FONTX],     style[e_TDC_FONTY],
+				style[e_TDC_BOX],       style[e_TDC_COLOUR],   style[e_TDC_BG],        style[e_TDC_BC],
+				style[e_TDC_MODEL],     style[e_TDC_ROT_X],    style[e_TDC_ROT_Y],     style[e_TDC_ROT_Z],
+				style[e_TDC_ZOOM],      style[e_TDC_COLOUR_1], style[e_TDC_COLOUR_2],  style[e_TDC_SELECTABLE]);
 	}
-	new UnmanagedPointer:p = style[e_TDC_TDS];
-	for (new i = 0, j = style[e_TDC_TDS_COUNT]; i != j; ++i) {
-		PlayerTextDrawDestroy(playerid, PlayerText:MEM_UM_get_val(p, i));
-	}
-	MEM_UM_delete(p);
-	new len = min(style[e_TDC_TEXT_LEN], sizeof (gTempString) - 1);
-	MEM_UM_get_arr(style[e_TDC_TEXT], 0, gTempString, len);
-	gTempString[len] = '\0';
-	MEM_UM_delete(style[e_TDC_TDS]);
-	TDC_Render(playerid, id,
-			style[e_TDC_X],         style[e_TDC_Y],        gTempString,            style[e_TDC_FONT],
-			style[e_TDC_ALIGNMENT], style[e_TDC_WIDTH],    style[e_TDC_HEIGHT],    style[e_TDC_SHADOW],
-			style[e_TDC_OUTLINE],   style[e_TDC_PROP],     style[e_TDC_FONTX],     style[e_TDC_FONTY],
-			style[e_TDC_BOX],       style[e_TDC_COLOUR],   style[e_TDC_BG],        style[e_TDC_BC],
-			style[e_TDC_MODEL],     style[e_TDC_ROT_X],    style[e_TDC_ROT_Y],     style[e_TDC_ROT_Z],
-			style[e_TDC_ZOOM],      style[e_TDC_COLOUR_1], style[e_TDC_COLOUR_2],  style[e_TDC_SELECTABLE]);
 	//for (new i = 0, j = MEM_UM_get_val(gPlayerTDs[playerid][id], e_TDC_TDS_COUNT), p = MEM_UM_get_val(gPlayerTDs[playerid][id], e_TDC_TDS); i != j; ++i) {
 	//	PlayerTextDrawShow(playerid, PlayerText:MEM_UM_get_val(UnmanagedPointer:p, i));
 	//}
@@ -1118,7 +1118,7 @@ stock TDC_PlayerTDSetPos(playerid, PlayerText:text, Float:x, Float:y) {
 }
 
 stock TDC_PlayerTDShow(playerid, PlayerText:text) {
-	if (TDC_ValidPlayer(playerid, text) && IsPlayerConnected(playerid)) {
+	if (TDC_ValidPlayer(playerid, text)) {
 		new slot = gPlayerTDs[playerid][text];
 		new flags = MEM_UM_get_val(slot, e_TDC_FLAGS);
 		if (!(flags & 8)) {
@@ -1129,7 +1129,7 @@ stock TDC_PlayerTDShow(playerid, PlayerText:text) {
 }
 
 stock TDC_PlayerTDHide(playerid, PlayerText:text) {
-	if (TDC_ValidPlayer(playerid, text) && IsPlayerConnected(playerid)) {
+	if (TDC_ValidPlayer(playerid, text)) {
 		new slot = gPlayerTDs[playerid][text];
 		new flags = MEM_UM_get_val(slot, e_TDC_FLAGS);
 		if (flags & 8) {
