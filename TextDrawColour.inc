@@ -343,7 +343,7 @@ enum e_TDC_ENUM {
 	e_TDC_FLAGS,
 	Float:TDC_X,
 	Float:TDC_Y,
-	Alloc:e_TDC_TEXT,
+	UnmanagedPointer:e_TDC_TEXT,
 	e_TDC_FONT,
 	e_TDC_ALIGNMENT,
 	Float:e_TDC_WIDTH,
@@ -366,14 +366,13 @@ enum e_TDC_ENUM {
 	e_TDC_COLOUR_1,
 	e_TDC_COLOUR_2,
 	Text:e_TDC_BOX_TD
+	UnmanagedPointer:e_TDC_TDS,
 }
 
-static stock Iterator:gPlayerTds[MAX_PLAYERS]<MAX_TEXT_DRAWS, MAX_TEXT_DRAWS>;
-static stock Iterator:gPlayerTds[MAX_PLAYERS]<MAX_TEXT_DRAWS, MAX_TEXT_DRAWS>;
-static stock Iterator:gPlayers[MAX_TEXT_DRAWS]<MAX_PLAYERS>;
-static stock Iterator:gTds<MAX_TEXT_DRAWS, MAX_TEXT_DRAWS>;
-static stock gStyle[MAX_TEXT_DRAWS][e_TDC_ENUM];
-static stock gPlayerStyle[MAX_PLAYERS * MAX_TEXT_DRAWS][e_TDC_ENUM];
+static stock UnmanagedPointer:gPlayerTDs[MAX_PLAYERS][PlayerText:MAX_TEXT_DRAWS];
+static stock BitArray:gPlayers[MAX_TEXT_DRAWS]<MAX_PLAYERS>;
+static stock UnmanagedPointer:gTDs[Text:MAX_TEXT_DRAWS];
+//static stock MEM_UM_get_val(gPlayerTDs[MAX_PLAYERS * MAX_TEXT_DRAWS], e_TDC_ENUM);
 
 hook OnPlayerDisconnect(playerid, reason) {
 	for (new Text:id = Text:0; id < Text:MAX_TEXT_DRAWS; id++) {
@@ -448,10 +447,10 @@ static stock TDC_Render(playerid, id, Float:x, Float:y, text[], font, alignment,
 			text[p2] = '\0';
 			if (playerid == INVALID_PLAYER_ID) {
 				new PlayerText:t = TDC_ShowPlayer(playerid, x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
-				Iter_Add(gPlayerTds[playerid]<id>, _:t);
+				Iter_Add(gPlayerTDs[playerid]<id>, _:t);
 			} else {
 				new Text:t = TDC_ShowGlobal(x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
-				Iter_Add(gTds<id>, _:t);
+				Iter_Add(gTDs<id>, _:t);
 			}
 			text[p2] = t2;
 			x2 += TDC_GetStringWidth(font, text[start], prop, outline, fontx);
@@ -492,10 +491,10 @@ static stock TDC_Render(playerid, id, Float:x, Float:y, text[], font, alignment,
 		text[line] = '\0';
 		if (playerid == INVALID_PLAYER_ID) {
 			new PlayerText:t = TDC_ShowPlayer(playerid, x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
-			Iter_Add(gPlayerTds[playerid]<id>, _:t);
+			Iter_Add(gPlayerTDs[playerid]<id>, _:t);
 		} else {
 			new Text:t = TDC_ShowGlobal(x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
-			Iter_Add(gTds<id>, _:t);
+			Iter_Add(gTDs<id>, _:t);
 		}
 	}
 	if (box) {
@@ -506,36 +505,36 @@ static stock TDC_Render(playerid, id, Float:x, Float:y, text[], font, alignment,
 }
 
 static stock bool:TDC_ValidGlobal(Text:id) {
-	return (Text:0 <= id < Text:MAX_TEXT_DRAWS && (gStyle[_:id][e_TDC_FLAGS] & 1));
+	return (Text:0 <= id < Text:MAX_TEXT_DRAWS && gTDs[id]);
 }
 
 static stock bool:TDC_ValidPlayer(playerid, PlayerText:id) {
-	return (PlayerText:0 <= id < PlayerText:MAX_TEXT_DRAWS && (gPlayerStyle[playerid * MAX_PLAYERS + _:id][e_TDC_FLAGS] & 1));
+	return (PlayerText:0 <= id < PlayerText:MAX_TEXT_DRAWS && gPlayerTDs[playerid][id]);
 }
 
 #define Malloc_FastString(%1) Malloc_NextSlot(_:(%1))
 
 static stock TDC_UpdateGlobal(id) {
-	if (gStyle[id][e_TDC_FLAGS] & 4) {
-		foreach (new t : gTds<id>) {
+	if (MEM_UM_get_val(gTDs[id], e_TDC_FLAGS) & 4) {
+		foreach (new t : gTDs<id>) {
 			TextDrawDestroy(Text:t);
 		}
-		Iter_Clear(gTds<id>);
+		Iter_Clear(gTDs<id>);
 		TDC_Render(INVALID_PLAYER_ID, id,
-				gStyle[id][TDC_X],                       gStyle[id][TDC_Y],
-				Malloc_FastString(gStyle[id][e_TDC_TEXT]), gStyle[id][e_TDC_FONT],
-				gStyle[id][e_TDC_ALIGNMENT],               gStyle[id][e_TDC_WIDTH],
-				gStyle[id][e_TDC_HEIGHT],                  gStyle[id][e_TDC_SHADOW],
-				gStyle[id][e_TDC_OUTLINE],                 gStyle[id][e_TDC_PROP],
-				gStyle[id][e_TDC_FONTX],                   gStyle[id][e_TDC_FONTY],
-				gStyle[id][e_TDC_BOX],                     gStyle[id][e_TDC_COLOUR],
-				gStyle[id][e_TDC_BG],                      gStyle[id][e_TDC_BC],
-				gStyle[id][e_TDC_MODEL],                   gStyle[id][e_TDC_ROT_X],
-				gStyle[id][e_TDC_ROT_Y],                   gStyle[id][e_TDC_ROT_Z],
-				gStyle[id][e_TDC_ZOOM],                    gStyle[id][e_TDC_COLOUR_1],
-				gStyle[id][e_TDC_COLOUR_2],                gStyle[id][e_TDC_SELECTABLE]);
-		foreach (new t : gTds<id>) {
-			foreach (new playerid : gPlayers[id]) {
+				MEM_UM_get_val(gTDs[id], TDC_X),                       MEM_UM_get_val(gTDs[id], TDC_Y),
+				Malloc_FastString(MEM_UM_get_val(gTDs[id], e_TDC_TEXT)), MEM_UM_get_val(gTDs[id], e_TDC_FONT),
+				MEM_UM_get_val(gTDs[id], e_TDC_ALIGNMENT),               MEM_UM_get_val(gTDs[id], e_TDC_WIDTH),
+				MEM_UM_get_val(gTDs[id], e_TDC_HEIGHT),                  MEM_UM_get_val(gTDs[id], e_TDC_SHADOW),
+				MEM_UM_get_val(gTDs[id], e_TDC_OUTLINE),                 MEM_UM_get_val(gTDs[id], e_TDC_PROP),
+				MEM_UM_get_val(gTDs[id], e_TDC_FONTX),                   MEM_UM_get_val(gTDs[id], e_TDC_FONTY),
+				MEM_UM_get_val(gTDs[id], e_TDC_BOX),                     MEM_UM_get_val(gTDs[id], e_TDC_COLOUR),
+				MEM_UM_get_val(gTDs[id], e_TDC_BG),                      MEM_UM_get_val(gTDs[id], e_TDC_BC),
+				MEM_UM_get_val(gTDs[id], e_TDC_MODEL),                   MEM_UM_get_val(gTDs[id], e_TDC_ROT_X),
+				MEM_UM_get_val(gTDs[id], e_TDC_ROT_Y),                   MEM_UM_get_val(gTDs[id], e_TDC_ROT_Z),
+				MEM_UM_get_val(gTDs[id], e_TDC_ZOOM),                    MEM_UM_get_val(gTDs[id], e_TDC_COLOUR_1),
+				MEM_UM_get_val(gTDs[id], e_TDC_COLOUR_2),                MEM_UM_get_val(gTDs[id], e_TDC_SELECTABLE));
+		foreach (new t : gTDs<id>) {
+			foreach (new playerid : Bits(gPlayers[id])) {
 				TextDrawShowForPlayer(playerid, Text:t);
 			}
 		}
@@ -543,35 +542,35 @@ static stock TDC_UpdateGlobal(id) {
 }
 
 static stock TDC_UpdatePlayer(playerid, id) {
-	foreach (new t : gPlayerTds[playerid]<id>) {
+	foreach (new t : gPlayerTDs[playerid]<id>) {
 		PlayerTextDrawDestroy(playerid, PlayerText:t);
 	}
 	new slot = playerid * MAX_PLAYERS + id;
-	Iter_Clear(gPlayerTds[playerid]<id>);
+	Iter_Clear(gPlayerTDs[playerid]<id>);
 	TDC_Render(playerid, id,
-			gPlayerStyle[slot][TDC_X],                      gPlayerStyle[slot][TDC_Y],
-			Malloc_FastString(gPlayerStyle[slot][e_TDC_TEXT]), gPlayerStyle[slot][e_TDC_FONT],
-			gPlayerStyle[slot][e_TDC_ALIGNMENT],               gPlayerStyle[slot][e_TDC_WIDTH],
-			gPlayerStyle[slot][e_TDC_HEIGHT],                  gPlayerStyle[slot][e_TDC_SHADOW],
-			gPlayerStyle[slot][e_TDC_OUTLINE],                 gPlayerStyle[slot][e_TDC_PROP],
-			gPlayerStyle[slot][e_TDC_FONTX],                   gPlayerStyle[slot][e_TDC_FONTY],
-			gPlayerStyle[slot][e_TDC_BOX],                     gPlayerStyle[slot][e_TDC_COLOUR],
-			gPlayerStyle[slot][e_TDC_BG],                      gPlayerStyle[slot][e_TDC_BC],
-			gPlayerStyle[slot][e_TDC_MODEL],                   gPlayerStyle[slot][e_TDC_ROT_X],
-			gPlayerStyle[slot][e_TDC_ROT_Y],                   gPlayerStyle[slot][e_TDC_ROT_Z],
-			gPlayerStyle[slot][e_TDC_ZOOM],                    gPlayerStyle[slot][e_TDC_COLOUR_1],
-			gPlayerStyle[slot][e_TDC_COLOUR_2],                gPlayerStyle[slot][e_TDC_SELECTABLE]);
-	if (gPlayerStyle[slot][e_TDC_FLAGS] & 8) {
-		foreach (new t : gPlayerTds[playerid]<id>) {
+			MEM_UM_get_val(slot, TDC_X),                      MEM_UM_get_val(slot, TDC_Y),
+			Malloc_FastString(MEM_UM_get_val(slot, e_TDC_TEXT)), MEM_UM_get_val(slot, e_TDC_FONT),
+			MEM_UM_get_val(slot, e_TDC_ALIGNMENT),               MEM_UM_get_val(slot, e_TDC_WIDTH),
+			MEM_UM_get_val(slot, e_TDC_HEIGHT),                  MEM_UM_get_val(slot, e_TDC_SHADOW),
+			MEM_UM_get_val(slot, e_TDC_OUTLINE),                 MEM_UM_get_val(slot, e_TDC_PROP),
+			MEM_UM_get_val(slot, e_TDC_FONTX),                   MEM_UM_get_val(slot, e_TDC_FONTY),
+			MEM_UM_get_val(slot, e_TDC_BOX),                     MEM_UM_get_val(slot, e_TDC_COLOUR),
+			MEM_UM_get_val(slot, e_TDC_BG),                      MEM_UM_get_val(slot, e_TDC_BC),
+			MEM_UM_get_val(slot, e_TDC_MODEL),                   MEM_UM_get_val(slot, e_TDC_ROT_X),
+			MEM_UM_get_val(slot, e_TDC_ROT_Y),                   MEM_UM_get_val(slot, e_TDC_ROT_Z),
+			MEM_UM_get_val(slot, e_TDC_ZOOM),                    MEM_UM_get_val(slot, e_TDC_COLOUR_1),
+			MEM_UM_get_val(slot, e_TDC_COLOUR_2),                MEM_UM_get_val(slot, e_TDC_SELECTABLE));
+	if (MEM_UM_get_val(slot, e_TDC_FLAGS) & 8) {
+		foreach (new t : gPlayerTDs[playerid]<id>) {
 			PlayerTextDrawShow(playerid, PlayerText:t);
 		}
 	}
 }
 
 stock Text:TDC_TextDrawCreate(Float:x, Float:y, text[]) {
-	static style[e_TDC_ENUM] = { 1, 0.0, 0.0, NO_ALLOC, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1 };
+	static style[e_TDC_ENUM] = { 1, 0.0, 0.0, MEM_NULLUMPTR, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1, MEM_NULLUMPTR };
 	for (new id = 0; id < MAX_TEXT_DRAWS; ++id) {
-		if (!(gStyle[id][e_TDC_FLAGS] & 1)) {
+		if (!(MEM_UM_get_val(gTDs[id], e_TDC_FLAGS) & 1)) {
 			new len = strlen(text);
 			new Alloc:mem = malloc(len + 1);
 			if (mem == NO_ALLOC) {
@@ -585,9 +584,9 @@ stock Text:TDC_TextDrawCreate(Float:x, Float:y, text[]) {
 				strcat(Malloc_FastString(mem), text, len + 1);
 			}
 			gStyle[id] = style;
-			gStyle[id][e_TDC_TEXT] = mem;
-			gStyle[id][TDC_X] = x;
-			gStyle[id][TDC_Y] = y;
+			MEM_UM_set_val(gTDs[id], e_TDC_TEXT, mem);
+			MEM_UM_set_val(gTDs[id], TDC_X, x);
+			MEM_UM_set_val(gTDs[id], TDC_Y, y);
 			return Text:id;
 		}
 	}
@@ -597,23 +596,23 @@ stock Text:TDC_TextDrawCreate(Float:x, Float:y, text[]) {
 stock TDC_TextDrawDestroy(Text:text) {
 	if (TDC_ValidGlobal(text)) {
 		TDC_TextDrawHideForAll(text);
-		gStyle[_:text][e_TDC_FLAGS] = 0;
-		free(gStyle[_:text][e_TDC_TEXT]);
+		MEM_UM_set_val(gTDs[_:text], e_TDC_FLAGS, 0);
+		free(MEM_UM_get_val(gTDs[_:text], e_TDC_TEXT));
 	}
 }
 
 stock TDC_TextDrawLetterSize(Text:text, Float:x, Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][e_TDC_FONTX] = x;
-		gStyle[_:text][e_TDC_FONTY] = y;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_FONTX, x);
+		MEM_UM_set_val(gTDs[_:text], e_TDC_FONTY, y);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawTextSize(Text:text, Float:x, Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][e_TDC_WIDTH] = x;
-		gStyle[_:text][e_TDC_HEIGHT] = y;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_WIDTH, x);
+		MEM_UM_set_val(gTDs[_:text], e_TDC_HEIGHT, y);
 		TDC_UpdateGlobal(_:text);
 	}
 }
@@ -621,107 +620,107 @@ stock TDC_TextDrawTextSize(Text:text, Float:x, Float:y) {
 stock TDC_TextDrawAlignment(Text:text, alignment) {
 	/* 1 = left, 2 = centre, 3 = right, 4 = fixed right, 5 = justify */
 	if (TDC_ValidGlobal(text) && 1 <= alignment <= 5) {
-		gStyle[_:text][e_TDC_ALIGNMENT] = alignment;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_ALIGNMENT, alignment);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawColor(Text:text, color) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][e_TDC_COLOUR] = color;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_COLOUR, color);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawUseBox(Text:text, use) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][e_TDC_BOX] = !!use;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_BOX, !!use);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawBoxColor(Text:text, color) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][e_TDC_BC] = color;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_BC, color);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetShadow(Text:text, size) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][e_TDC_SHADOW] = size;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_SHADOW, size);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetOutline(Text:text, size) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][e_TDC_OUTLINE] = size;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_OUTLINE, size);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawBackgroundColor(Text:text, color) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][e_TDC_BG] = color;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_BG, color);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawFont(Text:text, font) {
 	if (TDC_ValidGlobal(text) && 0 <= font <= 5) {
-		gStyle[_:text][e_TDC_FONT] = font;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_FONT, font);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetProportional(Text:text, set) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][e_TDC_PROP] = !!set;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_PROP, !!set);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetSelectable(Text:text, set) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][e_TDC_SELECTABLE] = !!set;
+		MEM_UM_set_val(gTDs[_:text], e_TDC_SELECTABLE, !!set);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetPos(Text:text, Float:x, Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][TDC_X] = x;
-		gStyle[_:text][TDC_Y] = y;
+		MEM_UM_set_val(gTDs[_:text], TDC_X, x);
+		MEM_UM_set_val(gTDs[_:text], TDC_Y, y);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawShowForPlayer(playerid, Text:text) {
-	if (TDC_ValidGlobal(text) && Iter_Contains(Player, playerid) && !Iter_Contains(gPlayers[_:text], playerid)) {
-		Iter_Add(gPlayers[_:text], playerid);
-		if (gStyle[_:text][e_TDC_FLAGS] & 4) {
-			foreach (new t : gTds<(_:text)>) {
+	if (TDC_ValidGlobal(text) && Iter_Contains(Player, playerid) && !Bit_Get(gPlayers[_:text], playerid)) {
+		Bit_Let(gPlayers[_:text], playerid);
+		if (MEM_UM_get_val(gTDs[_:text], e_TDC_FLAGS) & 4) {
+			foreach (new t : gTDs<(_:text)>) {
 				TextDrawShowForPlayer(playerid, Text:t);
 			}
 		} else {
-			gStyle[_:text][e_TDC_FLAGS] |= 4;
+			MEM_UM_get_val(gTDs[_:text], e_TDC_FLAGS) |= 4;
 			TDC_UpdateGlobal(_:text);
 		}
 	}
 }
 
 stock TDC_TextDrawHideForPlayer(playerid, Text:text) {
-	if (TDC_ValidGlobal(text) && Iter_Contains(gPlayers[_:text], playerid)) {
-		Iter_Remove(gPlayers[_:text], playerid);
-		if (Iter_Count(gPlayers[_:text] == 0)) {
-			gStyle[_:text][e_TDC_FLAGS] &= ~4;
-			foreach (new t : gTds<(_:text)>) {
+	if (TDC_ValidGlobal(text) && Bit_Get(gPlayers[_:text], playerid)) {
+		Bit_Vet(gPlayers[_:text], playerid);
+		if (Bit_GetCount(gPlayers[_:text] == 0)) {
+			MEM_UM_get_val(gTDs[_:text], e_TDC_FLAGS) &= ~4;
+			foreach (new t : gTDs<(_:text)>) {
 				TextDrawDestroy(Text:t);
 			}
-			Iter_Clear(gTds<(_:text)>);
+			Iter_Clear(gTDs<(_:text)>);
 		} else {
-			foreach (new t : gTds<(_:text)>) {
+			foreach (new t : gTDs<(_:text)>) {
 				TextDrawHideForPlayer(playerid, Text:t);
 			}
 		}
@@ -730,20 +729,20 @@ stock TDC_TextDrawHideForPlayer(playerid, Text:text) {
 
 stock TDC_TextDrawShowForAll(Text:text) {
 	if (TDC_ValidGlobal(text) && Iter_Count(Player)) {
-		gStyle[_:text][e_TDC_FLAGS] |= 4;
-		Iter_TrueArray(gPlayers[text]) = Iter_TrueArray(Player);
-		Iter_TrueCount(gPlayers[text]) = Iter_TrueCount(Player);
+		MEM_UM_get_val(gTDs[_:text], e_TDC_FLAGS) |= 4;
+		Bit_SetAll(gPlayers[text], true);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawHideForAll(Text:text) {
 	if (TDC_ValidGlobal(text)) {
-		gStyle[_:text][e_TDC_FLAGS] &= ~4;
-		foreach (new t : gTds<(_:text)>) {
+		MEM_UM_get_val(gTDs[_:text], e_TDC_FLAGS) &= ~4;
+		foreach (new t : gTDs<(_:text)>) {
 			TextDrawDestroy(Text:t);
 		}
-		Iter_Clear(gTds<_:text>);
+		Bit_SetAll(gPlayers[text], false);
+		Iter_Clear(gTDs<_:text>);
 	}
 }
 
@@ -761,41 +760,41 @@ stock TDC_TextDrawSetString(Text:text, string[]) {
 			Malloc_SetData(mem, 0, '\0');
 			strcat(Malloc_FastString(mem), string, len + 1);
 		}
-		free(gStyle[_:text][e_TDC_TEXT]);
-		gStyle[_:text][e_TDC_TEXT] = mem;
+		free(MEM_UM_get_val(gTDs[_:text], e_TDC_TEXT));
+		MEM_UM_set_val(gTDs[_:text], e_TDC_TEXT, mem);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetPreviewModel(Text:text, modelindex) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
-		gStyle[_:text][e_TDC_MODEL] = modelindex;
+	if (TDC_ValidGlobal(text) && MEM_UM_get_val(gTDs[_:text], e_TDC_FONT) == 5) {
+		MEM_UM_set_val(gTDs[_:text], e_TDC_MODEL, modelindex);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetPreviewRot(Text:text, Float:fRotX, Float:fRotY, Float:fRotZ, Float:fZoom = 1.0) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
-		gStyle[_:text][e_TDC_ROT_X] = fRotX;
-		gStyle[_:text][e_TDC_ROT_Y] = fRotY;
-		gStyle[_:text][e_TDC_ROT_Z] = fRotZ;
-		gStyle[_:text][e_TDC_ZOOM] = fZoom;
+	if (TDC_ValidGlobal(text) && MEM_UM_get_val(gTDs[_:text], e_TDC_FONT) == 5) {
+		MEM_UM_set_val(gTDs[_:text], e_TDC_ROT_X, fRotX);
+		MEM_UM_set_val(gTDs[_:text], e_TDC_ROT_Y, fRotY);
+		MEM_UM_set_val(gTDs[_:text], e_TDC_ROT_Z, fRotZ);
+		MEM_UM_set_val(gTDs[_:text], e_TDC_ZOOM, fZoom);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock TDC_TextDrawSetPreviewVehCol(Text:text, color1, color2) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
-		gStyle[_:text][e_TDC_COLOUR_1] = color1;
-		gStyle[_:text][e_TDC_COLOUR_2] = color2;
+	if (TDC_ValidGlobal(text) && MEM_UM_get_val(gTDs[_:text], e_TDC_FONT) == 5) {
+		MEM_UM_set_val(gTDs[_:text], e_TDC_COLOUR_1, color1);
+		MEM_UM_set_val(gTDs[_:text], e_TDC_COLOUR_2, color2);
 		TDC_UpdateGlobal(_:text);
 	}
 }
 
 stock bool:TDC_TextDrawGetLetterSize(Text:text, &Float:x, &Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		x = gStyle[_:text][e_TDC_FONTX];
-		y = gStyle[_:text][e_TDC_FONTY];
+		x = MEM_UM_get_val(gTDs[_:text], e_TDC_FONTX);
+		y = MEM_UM_get_val(gTDs[_:text], e_TDC_FONTY);
 		return true;
 	} else {
 		return false;
@@ -804,8 +803,8 @@ stock bool:TDC_TextDrawGetLetterSize(Text:text, &Float:x, &Float:y) {
 
 stock bool:TDC_TextDrawGetTextSize(Text:text, &Float:x, &Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		x = gStyle[_:text][e_TDC_WIDTH];
-		y = gStyle[_:text][e_TDC_HEIGHT];
+		x = MEM_UM_get_val(gTDs[_:text], e_TDC_WIDTH);
+		y = MEM_UM_get_val(gTDs[_:text], e_TDC_HEIGHT);
 		return true;
 	} else {
 		return false;
@@ -814,7 +813,7 @@ stock bool:TDC_TextDrawGetTextSize(Text:text, &Float:x, &Float:y) {
 
 stock bool:TDC_TextDrawGetAlignment(Text:text, &alignment) {
 	if (TDC_ValidGlobal(text)) {
-		alignment = gStyle[_:text][e_TDC_ALIGNMENT];
+		alignment = MEM_UM_get_val(gTDs[_:text], e_TDC_ALIGNMENT);
 		return true;
 	} else {
 		return false;
@@ -823,7 +822,7 @@ stock bool:TDC_TextDrawGetAlignment(Text:text, &alignment) {
 
 stock bool:TDC_TextDrawGetColor(Text:text, &color) {
 	if (TDC_ValidGlobal(text)) {
-		color = gStyle[_:text][e_TDC_COLOUR];
+		color = MEM_UM_get_val(gTDs[_:text], e_TDC_COLOUR);
 		return true;
 	} else {
 		return false;
@@ -832,7 +831,7 @@ stock bool:TDC_TextDrawGetColor(Text:text, &color) {
 
 stock bool:TDC_TextDrawGetUseBox(Text:text, &bool:use) {
 	if (TDC_ValidGlobal(text)) {
-		use = gStyle[_:text][e_TDC_BOX];
+		use = MEM_UM_get_val(gTDs[_:text], e_TDC_BOX);
 		return true;
 	} else {
 		return false;
@@ -841,7 +840,7 @@ stock bool:TDC_TextDrawGetUseBox(Text:text, &bool:use) {
 
 stock bool:TDC_TextDrawGetBoxColor(Text:text, &color) {
 	if (TDC_ValidGlobal(text)) {
-		color = gStyle[_:text][e_TDC_BC];
+		color = MEM_UM_get_val(gTDs[_:text], e_TDC_BC);
 		return true;
 	} else {
 		return false;
@@ -850,7 +849,7 @@ stock bool:TDC_TextDrawGetBoxColor(Text:text, &color) {
 
 stock bool:TDC_TextDrawGetShadow(Text:text, &size) {
 	if (TDC_ValidGlobal(text)) {
-		size = gStyle[_:text][e_TDC_SHADOW];
+		size = MEM_UM_get_val(gTDs[_:text], e_TDC_SHADOW);
 		return true;
 	} else {
 		return false;
@@ -859,7 +858,7 @@ stock bool:TDC_TextDrawGetShadow(Text:text, &size) {
 
 stock bool:TDC_TextDrawGetOutline(Text:text, &size) {
 	if (TDC_ValidGlobal(text)) {
-		size = gStyle[_:text][e_TDC_OUTLINE];
+		size = MEM_UM_get_val(gTDs[_:text], e_TDC_OUTLINE);
 		return true;
 	} else {
 		return false;
@@ -868,7 +867,7 @@ stock bool:TDC_TextDrawGetOutline(Text:text, &size) {
 
 stock bool:TDC_TextDrawGetBackgroundColor(Text:text, &color) {
 	if (TDC_ValidGlobal(text)) {
-		color = gStyle[_:text][e_TDC_BG];
+		color = MEM_UM_get_val(gTDs[_:text], e_TDC_BG);
 		return true;
 	} else {
 		return false;
@@ -877,7 +876,7 @@ stock bool:TDC_TextDrawGetBackgroundColor(Text:text, &color) {
 
 stock bool:TDC_TextDrawGetFont(Text:text, &font) {
 	if (TDC_ValidGlobal(text)) {
-		font = gStyle[_:text][e_TDC_FONT];
+		font = MEM_UM_get_val(gTDs[_:text], e_TDC_FONT);
 		return true;
 	} else {
 		return false;
@@ -886,7 +885,7 @@ stock bool:TDC_TextDrawGetFont(Text:text, &font) {
 
 stock bool:TDC_TextDrawGetProportional(Text:text, &bool:set) {
 	if (TDC_ValidGlobal(text)) {
-		set = gStyle[_:text][e_TDC_PROP];
+		set = MEM_UM_get_val(gTDs[_:text], e_TDC_PROP);
 		return true;
 	} else {
 		return false;
@@ -895,7 +894,7 @@ stock bool:TDC_TextDrawGetProportional(Text:text, &bool:set) {
 
 stock bool:TDC_TextDrawGetSelectable(Text:text, &bool:set) {
 	if (TDC_ValidGlobal(text)) {
-		set = gStyle[_:text][e_TDC_SELECTABLE];
+		set = MEM_UM_get_val(gTDs[_:text], e_TDC_SELECTABLE);
 		return true;
 	} else {
 		return false;
@@ -904,8 +903,8 @@ stock bool:TDC_TextDrawGetSelectable(Text:text, &bool:set) {
 
 stock bool:TDC_TextDrawGetPos(Text:text, &Float:x, &Float:y) {
 	if (TDC_ValidGlobal(text)) {
-		x = gStyle[_:text][TDC_X];
-		y = gStyle[_:text][TDC_Y];
+		x = MEM_UM_get_val(gTDs[_:text], TDC_X);
+		y = MEM_UM_get_val(gTDs[_:text], TDC_Y);
 		return true;
 	} else {
 		return false;
@@ -915,7 +914,7 @@ stock bool:TDC_TextDrawGetPos(Text:text, &Float:x, &Float:y) {
 stock bool:TDC_TextDrawGetString(Text:text, string[], size = sizeof (string)) {
 	if (TDC_ValidGlobal(text)) {
 		string[0] = '\0';
-		strcat(string, Malloc_FastString(gStyle[_:text][e_TDC_TEXT]), size);
+		strcat(string, Malloc_FastString(MEM_UM_get_val(gTDs[_:text], e_TDC_TEXT)), size);
 		return true;
 	} else {
 		return false;
@@ -923,8 +922,8 @@ stock bool:TDC_TextDrawGetString(Text:text, string[], size = sizeof (string)) {
 }
 
 stock bool:TDC_TextDrawGetPreviewModel(Text:text, &modelindex) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
-		modelindex = gStyle[_:text][e_TDC_MODEL];
+	if (TDC_ValidGlobal(text) && MEM_UM_get_val(gTDs[_:text], e_TDC_FONT) == 5) {
+		modelindex = MEM_UM_get_val(gTDs[_:text], e_TDC_MODEL);
 		return true;
 	} else {
 		return false;
@@ -932,11 +931,11 @@ stock bool:TDC_TextDrawGetPreviewModel(Text:text, &modelindex) {
 }
 
 stock bool:TDC_TextDrawGetPreviewRot(Text:text, &Float:fRotX, &Float:fRotY, &Float:fRotZ, &Float:fZoom = 1.0) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
-		fRotX = gStyle[_:text][e_TDC_ROT_X];
-		fRotY = gStyle[_:text][e_TDC_ROT_Y];
-		fRotZ = gStyle[_:text][e_TDC_ROT_Z];
-		fZoom = gStyle[_:text][e_TDC_ZOOM];
+	if (TDC_ValidGlobal(text) && MEM_UM_get_val(gTDs[_:text], e_TDC_FONT) == 5) {
+		fRotX = MEM_UM_get_val(gTDs[_:text], e_TDC_ROT_X);
+		fRotY = MEM_UM_get_val(gTDs[_:text], e_TDC_ROT_Y);
+		fRotZ = MEM_UM_get_val(gTDs[_:text], e_TDC_ROT_Z);
+		fZoom = MEM_UM_get_val(gTDs[_:text], e_TDC_ZOOM);
 		return true;
 	} else {
 		return false;
@@ -944,9 +943,9 @@ stock bool:TDC_TextDrawGetPreviewRot(Text:text, &Float:fRotX, &Float:fRotY, &Flo
 }
 
 stock bool:TDC_TextDrawGetPreviewVehCol(Text:text, &color1, &color2) {
-	if (TDC_ValidGlobal(text) && gStyle[_:text][e_TDC_FONT] == 5) {
-		color1 = gStyle[_:text][e_TDC_COLOUR_1];
-		color2 = gStyle[_:text][e_TDC_COLOUR_2];
+	if (TDC_ValidGlobal(text) && MEM_UM_get_val(gTDs[_:text], e_TDC_FONT) == 5) {
+		color1 = MEM_UM_get_val(gTDs[_:text], e_TDC_COLOUR_1);
+		color2 = MEM_UM_get_val(gTDs[_:text], e_TDC_COLOUR_2);
 		return true;
 	} else {
 		return false;
@@ -954,26 +953,29 @@ stock bool:TDC_TextDrawGetPreviewVehCol(Text:text, &color1, &color2) {
 }
 
 stock PlayerText:TDC_PlayerTDCreate(playerid, Float:x, Float:y, text[]) {
-	static style[e_TDC_ENUM] = { 1, 0.0, 0.0, NO_ALLOC, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1 };
+	static style[e_TDC_ENUM] = { 1, 0.0, 0.0, MEM_NULLUMPTR, 0, 1, 640.0, 480.0, 2, 0, true, 0.48, 1.15, false, false, 0xE1E1E1FF, 0x000000FF, 0x000000FF, 0.0, 0.0, 0.0, 1.0, 0, -1, -1, MEM_NULLUMPTR };
 	for (new id = 0; id < MAX_TEXT_DRAWS; ++id) {
-		new slot = playerid * MAX_PLAYERS + id;
-		if (!(gPlayerStyle[slot][e_TDC_FLAGS] & 1)) {
+		//new slot = playerid * MAX_PLAYERS + id;
+		if (!gPlayerTDs[playerid][id]) {
 			new len = strlen(text);
-			new Alloc:mem = malloc(len + 1);
-			if (mem == NO_ALLOC) {
+			new slot = MEM_UM_new(e_TDC_ENUM);
+			if (!slot) {
 				return PlayerText:INVALID_TEXT_DRAW;
 			}
-			if (text[0] == '\0') {
-				Malloc_SetData(mem, 0, ' ');
-				Malloc_SetData(mem, 1, '\0');
-			} else {
-				Malloc_SetData(mem, 0, '\0');
-				strcat(Malloc_FastString(mem), text, len + 1);
+			gPlayerTDs[playerid][id] = slot;
+			new UnmanagedPointer:mem = MEM_UM_new(len + 1);
+			if (mem == MEM_NULLUMPTR) {
+				return;
 			}
-			gPlayerStyle[slot] = style;
-			gPlayerStyle[slot][e_TDC_TEXT] = mem;
-			gPlayerStyle[slot][TDC_X] = x;
-			gPlayerStyle[slot][TDC_Y] = y;
+			if (len) {
+				MEM_UM_set_arr(mem, e_TDC_ENUM, text, len + 1);
+			} else {
+				MEM_UM_set_arr(mem, e_TDC_ENUM, " ", 2);
+			}
+			MEM_UM_set_arr(slot, 0, style, e_TDC_ENUM);
+			MEM_UM_set_val(slot, e_TDC_TEXT, mem);
+			MEM_UM_set_val(slot, TDC_X, x);
+			MEM_UM_set_val(slot, TDC_Y, y);
 			return PlayerText:id;
 		}
 	}
@@ -981,28 +983,28 @@ stock PlayerText:TDC_PlayerTDCreate(playerid, Float:x, Float:y, text[]) {
 }
 
 stock TDC_PlayerTDDestroy(playerid, PlayerText:text) {
-	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
+		new slot = gPlayerTDs[playerid][text];
 		TDC_PlayerTDHide(playerid, text);
-		gPlayerStyle[slot][e_TDC_FLAGS] = 0;
-		free(gPlayerStyle[slot][e_TDC_TEXT]);
+		MEM_UM_set_val(slot, e_TDC_FLAGS, 0);
+		free(MEM_UM_get_val(slot, e_TDC_TEXT));
 	}
 }
 
 stock TDC_PlayerTDLetterSize(playerid, PlayerText:text, Float:x, Float:y) {
-	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[slot][e_TDC_FONTX] = x;
-		gPlayerStyle[slot][e_TDC_FONTY] = y;
+		new slot = gPlayerTDs[playerid][text];
+		MEM_UM_set_val(slot, e_TDC_FONTX, x);
+		MEM_UM_set_val(slot, e_TDC_FONTY, y);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDTextSize(playerid, PlayerText:text, Float:x, Float:y) {
-	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[slot][e_TDC_WIDTH] = x;
-		gPlayerStyle[slot][e_TDC_HEIGHT] = y;
+		new slot = gPlayerTDs[playerid][text];
+		MEM_UM_set_val(slot, e_TDC_WIDTH, x);
+		MEM_UM_set_val(slot, e_TDC_HEIGHT, y);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
@@ -1010,154 +1012,161 @@ stock TDC_PlayerTDTextSize(playerid, PlayerText:text, Float:x, Float:y) {
 stock TDC_PlayerTDAlignment(playerid, PlayerText:text, alignment) {
 	/* 1 = left, 2 = centre, 3 = right, 4 = fixed right, 5 = justify */
 	if (TDC_ValidPlayer(playerid, text) && 1 <= alignment <= 5) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_ALIGNMENT] = alignment;
+		MEM_UM_set_val(gPlayerTDs[playerid][text], e_TDC_ALIGNMENT, alignment);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDColor(playerid, PlayerText:text, color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_COLOUR] = color;
+		MEM_UM_set_val(gPlayerTDs[playerid][text], e_TDC_COLOUR, color);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDUseBox(playerid, PlayerText:text, use) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BOX] = !!use;
+		MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_BOX) = !!use;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDBoxColor(playerid, PlayerText:text, color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BC] = color;
+		MEM_UM_set_val(gPlayerTDs[playerid][text], e_TDC_BC, color);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetShadow(playerid, PlayerText:text, size) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_SHADOW] = size;
+		MEM_UM_set_val(gPlayerTDs[playerid][text], e_TDC_SHADOW, size);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetOutline(playerid, PlayerText:text, size) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_OUTLINE] = size;
+		MEM_UM_set_val(gPlayerTDs[playerid][text], e_TDC_OUTLINE, size);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDBackgroundColor(playerid, PlayerText:text, color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BG] = color;
+		MEM_UM_set_val(gPlayerTDs[playerid][text], e_TDC_BG, color);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDFont(playerid, PlayerText:text, font) {
 	if (TDC_ValidPlayer(playerid, text) && 0 <= font <= 5) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_FONT] = font;
+		MEM_UM_set_val(gPlayerTDs[playerid][text], e_TDC_FONT, font);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetProportional(playerid, PlayerText:text, set) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_PROP] = !!set;
+		MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_PROP) = !!set;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetSelectable(playerid, PlayerText:text, set) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_SELECTABLE] = !!set;
+		MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_SELECTABLE) = !!set;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetPos(playerid, PlayerText:text, Float:x, Float:y) {
-	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
-		gPlayerStyle[slot][TDC_X] = x;
-		gPlayerStyle[slot][TDC_Y] = y;
+		new slot = gPlayerTDs[playerid][text];
+		MEM_UM_set_val(slot, TDC_X, x);
+		MEM_UM_set_val(slot, TDC_Y, y);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDShow(playerid, PlayerText:text) {
 	if (TDC_ValidPlayer(playerid, text) && Iter_Contains(Player, playerid)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_FLAGS] |= 8;
+		MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_FLAGS) |= 8;
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDHide(playerid, PlayerText:text) {
 	if (TDC_ValidPlayer(playerid, text) && Iter_Contains(Player, playerid)) {
-		gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_FLAGS] &= ~8;
-		foreach (new t : gPlayerTds[playerid]<(_:text)>) {
+		MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_FLAGS) &= ~8;
+		foreach (new t : gPlayerTDs[playerid]<(_:text)>) {
 			PlayerTextDrawDestroy(playerid, PlayerText:t);
 		}
-		Iter_Clear(gPlayerTds[playerid]<_:text>);
+		Iter_Clear(gPlayerTDs[playerid]<_:text>);
 	}
 }
 
 stock TDC_PlayerTDSetString(playerid, PlayerText:text, string[]) {
-	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
+		new slot = gPlayerTDs[playerid][text];
 		new len = strlen(string);
-		new Alloc:mem = malloc(len + 1);
-		if (mem == NO_ALLOC) {
+		new UnmanagedPointer:mem = MEM_UM_new(len + 1);
+		if (mem == MEM_NULLUMPTR) {
 			return;
 		}
-		if (text[0] == '\0') {
-			Malloc_SetData(mem, 0, ' ');
-			Malloc_SetData(mem, 1, '\0');
+		if (len) {
+			MEM_UM_set_arr(mem, e_TDC_ENUM, text, len + 1);
 		} else {
-			Malloc_SetData(mem, 0, '\0');
-			strcat(Malloc_FastString(mem), string, len + 1);
+			MEM_UM_set_arr(mem, e_TDC_ENUM, " ", 2);
 		}
-		free(gPlayerStyle[slot][e_TDC_TEXT]);
-		gPlayerStyle[slot]][e_TDC_TEXT] = mem;
+		MEM_UM_delete(MEM_UM_get_val(slot, e_TDC_TEXT));
+		MEM_UM_set_val(slot, e_TDC_TEXT, mem);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetPreviewModel(playerid, PlayerText:text, modelindex) {
-	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
-		gPlayerStyle[slot][e_TDC_MODEL] = modelindex;
+	if (TDC_ValidPlayer(playerid, text))
+		new slot = gPlayerTDs[playerid][text];
+		if (MEM_UM_get_val(slot, e_TDC_FONT) != 5) {
+			return;
+		}
+		MEM_UM_set_val(slot, e_TDC_MODEL, modelindex);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetPreviewRot(playerid, PlayerText:text, Float:fRotX, Float:fRotY, Float:fRotZ, Float:fZoom = 1.0) {
-	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
-		gPlayerStyle[slot][e_TDC_ROT_X] = fRotX;
-		gPlayerStyle[slot][e_TDC_ROT_Y] = fRotY;
-		gPlayerStyle[slot][e_TDC_ROT_Z] = fRotZ;
-		gPlayerStyle[slot][e_TDC_ZOOM] = fZoom;
+	if (TDC_ValidPlayer(playerid, text))
+		new slot = gPlayerTDs[playerid][text];
+		if (MEM_UM_get_val(slot, e_TDC_FONT) != 5) {
+			return;
+		}
+		MEM_UM_set_val(slot, e_TDC_ROT_X, fRotX);
+		MEM_UM_set_val(slot, e_TDC_ROT_Y, fRotY);
+		MEM_UM_set_val(slot, e_TDC_ROT_Z, fRotZ);
+		MEM_UM_set_val(slot, e_TDC_ZOOM, fZoom);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock TDC_PlayerTDSetPreviewVehCol(playerid, PlayerText:text, color1, color2) {
-	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
-		gPlayerStyle[slot][e_TDC_COLOUR_1] = color1;
-		gPlayerStyle[slot][e_TDC_COLOUR_2] = color2;
+	if (TDC_ValidPlayer(playerid, text))
+		new slot = gPlayerTDs[playerid][text];
+		if (MEM_UM_get_val(slot, e_TDC_FONT) != 5) {
+			return;
+		}
+		MEM_UM_set_val(slot, e_TDC_COLOUR_1, color1);
+		MEM_UM_set_val(slot, e_TDC_COLOUR_2, color2);
 		TDC_UpdatePlayer(playerid, _:text);
 	}
 }
 
 stock bool:TDC_PlayerTDGetLetterSize(playerid, PlayerText:text, &Float:x, &Float:y) {
-	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
-		x = gPlayerStyle[slot][e_TDC_FONTX];
-		y = gPlayerStyle[slot][e_TDC_FONTY];
+		new slot = gPlayerTDs[playerid][text];
+		x = MEM_UM_get_val(slot, e_TDC_FONTX);
+		y = MEM_UM_get_val(slot, e_TDC_FONTY);
 		return true;
 	} else {
 		return false;
@@ -1165,10 +1174,10 @@ stock bool:TDC_PlayerTDGetLetterSize(playerid, PlayerText:text, &Float:x, &Float
 }
 
 stock bool:TDC_PlayerTDGetTextSize(playerid, PlayerText:text, &Float:x, &Float:y) {
-	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
-		x = gPlayerStyle[slot][e_TDC_WIDTH];
-		y = gPlayerStyle[slot][e_TDC_HEIGHT];
+		new slot = gPlayerTDs[playerid][text];
+		x = MEM_UM_get_val(slot, e_TDC_WIDTH);
+		y = MEM_UM_get_val(slot, e_TDC_HEIGHT);
 		return true;
 	} else {
 		return false;
@@ -1177,7 +1186,7 @@ stock bool:TDC_PlayerTDGetTextSize(playerid, PlayerText:text, &Float:x, &Float:y
 
 stock bool:TDC_PlayerTDGetAlignment(playerid, PlayerText:text, &alignment) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		alignment = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_ALIGNMENT];
+		alignment = MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_ALIGNMENT);
 		return true;
 	} else {
 		return false;
@@ -1186,7 +1195,7 @@ stock bool:TDC_PlayerTDGetAlignment(playerid, PlayerText:text, &alignment) {
 
 stock bool:TDC_PlayerTDGetColor(playerid, PlayerText:text, &color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		color = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_COLOUR];
+		color = MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_COLOUR);
 		return true;
 	} else {
 		return false;
@@ -1195,7 +1204,7 @@ stock bool:TDC_PlayerTDGetColor(playerid, PlayerText:text, &color) {
 
 stock bool:TDC_PlayerTDGetUseBox(playerid, PlayerText:text, &bool:use) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		use = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BOX];
+		use = MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_BOX);
 		return true;
 	} else {
 		return false;
@@ -1204,7 +1213,7 @@ stock bool:TDC_PlayerTDGetUseBox(playerid, PlayerText:text, &bool:use) {
 
 stock bool:TDC_PlayerTDGetBoxColor(playerid, PlayerText:text, &color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		color = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BC];
+		color = MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_BC);
 		return true;
 	} else {
 		return false;
@@ -1213,7 +1222,7 @@ stock bool:TDC_PlayerTDGetBoxColor(playerid, PlayerText:text, &color) {
 
 stock bool:TDC_PlayerTDGetShadow(playerid, PlayerText:text, &size) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		size = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_SHADOW];
+		size = MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_SHADOW);
 		return true;
 	} else {
 		return false;
@@ -1222,7 +1231,7 @@ stock bool:TDC_PlayerTDGetShadow(playerid, PlayerText:text, &size) {
 
 stock bool:TDC_PlayerTDGetOutline(playerid, PlayerText:text, &size) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		size = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_OUTLINE];
+		size = MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_OUTLINE);
 		return true;
 	} else {
 		return false;
@@ -1231,7 +1240,7 @@ stock bool:TDC_PlayerTDGetOutline(playerid, PlayerText:text, &size) {
 
 stock bool:TDC_PlayerTDGetBackgroundColor(playerid, PlayerText:text, &color) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		color = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_BG];
+		color = MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_BG);
 		return true;
 	} else {
 		return false;
@@ -1240,7 +1249,7 @@ stock bool:TDC_PlayerTDGetBackgroundColor(playerid, PlayerText:text, &color) {
 
 stock bool:TDC_PlayerTDGetFont(playerid, PlayerText:text, &font) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		font = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_FONT];
+		font = MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_FONT);
 		return true;
 	} else {
 		return false;
@@ -1249,7 +1258,7 @@ stock bool:TDC_PlayerTDGetFont(playerid, PlayerText:text, &font) {
 
 stock bool:TDC_PlayerTDGetProportional(playerid, PlayerText:text, &bool:set) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		set = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_PROP];
+		set = MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_PROP);
 		return true;
 	} else {
 		return false;
@@ -1258,7 +1267,7 @@ stock bool:TDC_PlayerTDGetProportional(playerid, PlayerText:text, &bool:set) {
 
 stock bool:TDC_PlayerTDGetSelectable(playerid, PlayerText:text, &bool:set) {
 	if (TDC_ValidPlayer(playerid, text)) {
-		set = gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_SELECTABLE];
+		set = MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_SELECTABLE);
 		return true;
 	} else {
 		return false;
@@ -1266,10 +1275,10 @@ stock bool:TDC_PlayerTDGetSelectable(playerid, PlayerText:text, &bool:set) {
 }
 
 stock bool:TDC_PlayerTDGetPos(playerid, PlayerText:text, &Float:x, &Float:y) {
-	new slot = playerid * MAX_PLAYERS + _:text;
 	if (TDC_ValidPlayer(playerid, text)) {
-		x = gPlayerStyle[slot][TDC_X];
-		y = gPlayerStyle[slot][TDC_Y];
+		new slot = gPlayerTDs[playerid][text];
+		x = MEM_UM_get_val(slot, TDC_X);
+		y = MEM_UM_get_val(slot, TDC_Y);
 		return true;
 	} else {
 		return false;
@@ -1279,7 +1288,7 @@ stock bool:TDC_PlayerTDGetPos(playerid, PlayerText:text, &Float:x, &Float:y) {
 stock bool:TDC_PlayerTDGetString(playerid, PlayerText:text, string[], size = sizeof (string)) {
 	if (TDC_ValidPlayer(playerid, text)) {
 		string[0] = '\0';
-		strcat(string, Malloc_FastString(gPlayerStyle[playerid * MAX_PLAYERS + _:text][e_TDC_TEXT]), size);
+		strcat(string, Malloc_FastString(MEM_UM_get_val(gPlayerTDs[playerid][text], e_TDC_TEXT)), size);
 		return true;
 	} else {
 		return false;
@@ -1287,9 +1296,12 @@ stock bool:TDC_PlayerTDGetString(playerid, PlayerText:text, string[], size = siz
 }
 
 stock bool:TDC_PlayerTDGetPreviewModel(playerid, PlayerText:text, &modelindex) {
-	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
-		modelindex = gPlayerStyle[slot][e_TDC_MODEL];
+	if (TDC_ValidPlayer(playerid, text))
+		new slot = gPlayerTDs[playerid][text];
+		if (MEM_UM_get_val(slot, e_TDC_FONT) != 5) {
+			return;
+		}
+		modelindex = MEM_UM_get_val(slot, e_TDC_MODEL);
 		return true;
 	} else {
 		return false;
@@ -1297,12 +1309,15 @@ stock bool:TDC_PlayerTDGetPreviewModel(playerid, PlayerText:text, &modelindex) {
 }
 
 stock bool:TDC_PlayerTDGetPreviewRot(playerid, PlayerText:text, &Float:fRotX, &Float:fRotY, &Float:fRotZ, &Float:fZoom = 1.0) {
-	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
-		fRotX = gPlayerStyle[slot][e_TDC_ROT_X];
-		fRotY = gPlayerStyle[slot][e_TDC_ROT_Y];
-		fRotZ = gPlayerStyle[slot][e_TDC_ROT_Z];
-		fZoom = gPlayerStyle[slot][e_TDC_ZOOM];
+	if (TDC_ValidPlayer(playerid, text))
+		new slot = gPlayerTDs[playerid][text];
+		if (MEM_UM_get_val(slot, e_TDC_FONT) != 5) {
+			return;
+		}
+		fRotX = MEM_UM_get_val(slot, e_TDC_ROT_X);
+		fRotY = MEM_UM_get_val(slot, e_TDC_ROT_Y);
+		fRotZ = MEM_UM_get_val(slot, e_TDC_ROT_Z);
+		fZoom = MEM_UM_get_val(slot, e_TDC_ZOOM);
 		return true;
 	} else {
 		return false;
@@ -1310,10 +1325,13 @@ stock bool:TDC_PlayerTDGetPreviewRot(playerid, PlayerText:text, &Float:fRotX, &F
 }
 
 stock bool:TDC_PlayerTDGetPreviewVehCol(playerid, PlayerText:text, &color1, &color2) {
-	new slot = playerid * MAX_PLAYERS + _:text;
-	if (TDC_ValidPlayer(playerid, text) && gPlayerStyle[slot][e_TDC_FONT] == 5) {
-		color1 = gPlayerStyle[slot][e_TDC_COLOUR_1];
-		color2 = gPlayerStyle[slot][e_TDC_COLOUR_2];
+	if (TDC_ValidPlayer(playerid, text))
+		new slot = gPlayerTDs[playerid][text];
+		if (MEM_UM_get_val(slot, e_TDC_FONT) != 5) {
+			return;
+		}
+		color1 = MEM_UM_get_val(slot, e_TDC_COLOUR_1);
+		color2 = MEM_UM_get_val(slot, e_TDC_COLOUR_2);
 		return true;
 	} else {
 		return false;
