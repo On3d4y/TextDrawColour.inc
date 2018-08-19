@@ -267,6 +267,7 @@ static stock PlayerText:TDC_ShowPlayer(playerid, Float:x, Float:y, text[], font,
 		PlayerTextDrawSetPreviewRot(playerid, t, fRotX, fRotY, fRotZ, fZoom);
 		PlayerTextDrawSetPreviewVehCol(playerid, t, color1, color2);
 	}
+	PlayerTextDrawShow(playerid, t);
 	return t;
 }
 
@@ -391,6 +392,10 @@ static stock TDC_Render(playerid, id, Float:x, Float:y, text[], font, alignment,
 	new Float:x2;
 	new Float:measured;
 	new Float:space = TDC_GetCharacterWidth(font, ' ', prop, outline, fontx);
+	new UnmanagedPointer:p = MEM_UM_new(32);
+	new pl = 32;
+	new pc = 0;
+	new t;
 	if (font < 4) {
 		switch (alignment) {
 			case 1, 5:
@@ -448,12 +453,20 @@ static stock TDC_Render(playerid, id, Float:x, Float:y, text[], font, alignment,
 			new t2 = text[p2];
 			text[p2] = '\0';
 			if (playerid == INVALID_PLAYER_ID) {
-				new PlayerText:t = TDC_ShowPlayer(playerid, x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
-				Iter_Add(gPlayerTDs[playerid]<id>, _:t);
+				t = _:TDC_ShowPlayer(playerid, x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
+				//Iter_Add(gPlayerTDs[playerid]<id>, _:t);
 			} else {
-				new Text:t = TDC_ShowGlobal(x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
-				Iter_Add(gTDs<id>, _:t);
+				t = _:TDC_ShowGlobal(x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
+				//Iter_Add(gTDs<id>, _:t);
 			}
+			if (pc == pl) {
+				new px = MEM_UM_new(pl * 2);
+				MEM_UM_copy(px, p, pl);
+				MEM_UM_delete(p);
+				pl *= 2;
+				p = px;
+			}
+			MEM_UM_set_val(p, pc++, t);
 			text[p2] = t2;
 			x2 += TDC_GetStringWidth(font, text[start], prop, outline, fontx);
 			text[p1] = t1;
@@ -492,17 +505,30 @@ static stock TDC_Render(playerid, id, Float:x, Float:y, text[], font, alignment,
 		}
 		text[line] = '\0';
 		if (playerid == INVALID_PLAYER_ID) {
-			new PlayerText:t = TDC_ShowPlayer(playerid, x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
-			Iter_Add(gPlayerTDs[playerid]<id>, _:t);
+			t = _:TDC_ShowPlayer(playerid, x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
 		} else {
-			new Text:t = TDC_ShowGlobal(x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
-			Iter_Add(gTDs<id>, _:t);
+			t = _:TDC_ShowGlobal(x2, y, text[start], font, 1, 9999.0, 9999.0, shadow, outline, prop, fontx, fonty, box, colour, bg, bc, modelindex, fRotX, fRotY, fRotZ, fZoom, color1, color2, select);
 		}
+		if (pc == pl) {
+			new px = MEM_UM_new(pl * 2);
+			MEM_UM_copy(px, p, pl);
+			MEM_UM_delete(p);
+			pl *= 2;
+1			p = px;
+		}
+		MEM_UM_set_val(p, pc++, t);
 	}
 	if (box) {
 		
 	} else {
 		
+	}
+	if (playerid == INVALID_PLAYER_ID) {
+		MEM_UM_set_val(gTDs[id], e_TDC_TDS, p);
+		MEM_UM_set_val(gTDs[id], e_TDC_TDS_COUNT, pc)
+	} else {
+		MEM_UM_set_val(gPlayerTDs[playerid][id], e_TDC_TDS, p);
+		MEM_UM_set_val(gPlayerTDs[playerid][id], e_TDC_TDS_COUNT, pc)
 	}
 }
 
@@ -989,6 +1015,7 @@ stock TDC_PlayerTDDestroy(playerid, PlayerText:text) {
 		TDC_PlayerTDHide(playerid, text);
 		MEM_UM_delete(MEM_UM_get_val(slot, e_TDC_TEXT));
 		MEM_UM_delete(slot);
+		gPlayerTDs[playerid][text] = MEM_NULLUMPTR;
 	}
 }
 
@@ -1114,6 +1141,7 @@ stock TDC_PlayerTDHide(playerid, PlayerText:text) {
 			PlayerTextDrawDestroy(playerid, PlayerText:MEM_UM_get_val(p, i));
 		}
 		MEM_UM_set_val(slot, e_TDC_TDS_COUNT, 0);
+		MEM_UM_set_val(slot, e_TDC_TDS, MEM_NULLUMPTR);
 		MEM_UM_delete(p);
 	}
 }
